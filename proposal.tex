@@ -1,0 +1,120 @@
+\documentclass[12pt]{article}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[bottom=20mm, top=20mm, left=20mm, right=20mm]{geometry}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{bussproofs}
+\usepackage{comment}
+\usepackage[numbers]{natbib}
+\usepackage{graphicx} % Graphics support
+\usepackage{caption} % Improved captions
+\usepackage{subfig} % Inclusion of subfigures
+%\usepackage{subfigure}
+
+% adjust space between letters
+\usepackage{microtype}
+
+% adjust space between lines
+\linespread{1.05}
+
+% for header and footer
+\usepackage{fancyhdr}
+
+% change the font size of section
+%\usepackage{sectsty}
+%\sectionfont{\fontsize{12}{15}\selectfont}
+%\subsectionfont{\fontsize{11}{14}\selectfont}
+
+\usepackage{amsmath, amssymb}
+
+\pagestyle{fancy}
+
+\lhead{Department of Computer Science\\
+Princeton University}
+\chead{}
+% \rhead{\includegraphics[height=15mm]{princeton_logo.jpg}}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+
+% remove page numbers
+%\thispagestyle{empty}
+
+% no indent at the start of paragraphs
+\parindent=0em
+
+% for increasing space between paragraphs
+\newcommand{\emptyline}{\vspace{5pt}}
+
+%-----------------------------------------------------------
+
+\begin{document}
+\quad \\
+\quad \\
+\quad \\
+\centerline{ \large{COS 561 Proposal}}
+\vspace{1pt}\\
+\centerline{Ryan Beckett and Olivier Savary Belanger} \\
+\\
+\centerline{March 24, 2015} \\
+
+
+
+\section*{Introduction}
+
+Software-Defined Networking (SDN) has enabled centralized network programmability by providing a simple, open interface to the hardware. Maple \cite{Maple} simplifies the task of writing centralized network programs by allowing operators to write a forwarding decision program which conceptually runs on every packet in the network. To achieve controller scalability, Maple records previous decisions on packets and installs forwarding rules to handle similar future traffic directly in the data plane. However, Maple is reactive and must witness how the controller handles a packet before installing forwarding rules, forcing all traffic to initially go through the controller. Also, Maple lacks an elegant mechanism for handling stateful programs, relying instead on low-level, user-supplied trace invalidation schemes. We plan to address both of these limitations by redesigning the Maple API to proactively generate and generalize rules from a controller program to avoid initial packet latency, and to automate invalidation for stateful controller programs by providing a built in table data structure.
+
+
+\section*{Generalization and Proactive Generation of Trace Tree}
+
+%	+ Generalization made possible by range-based queries rather than returning the field's value (get)
+\paragraph{A New API for More Efficient Trace Tree} Maple uses a trace tree to memoize the results of applying the algorithmic policy to a class of packets. Nodes in the tree corresponds to calls to the Maple API, and each child corresponds to a return value of the API call. In Maple, the trace tree starts empty and expands when the controller processes a packet whose trace is not present in the tree. 
+However, we observe that it is infrequent for a controller to apply different policies to each different values of a field. Rather, the same policy is used for a range of values (e.g., if a packet has a certain IP prefix). A call to the Maple API would often be followed by an if-statement with a boolean predicate which depends on the returned value. In that case, the tree could be compressed by internalizing the boolean predicate in the API. Such an API would consists of a function from ranges to Boolean for each fields in a packet. As with the current Maple API, all decisions involving packets field values are captured by the trace tree, making this API fully language-agnostic. We believe the two APIs to be of equivalent strength.
+%(TODONote: as powerful, translation between "i <- get(dst); case i -> f_i" and "while(i++) if r(i) => case(i);break with function case(i) case i -> f_i" equivalent to case-semantics)
+
+% + Proactive generation that explores the complement of the ranges encountered (similar to directed random testing). As all decision involving the field's values are captured by the range-based queries, this remains language agnostic.
+\paragraph{Proactive Generation of Trace Tree} This revised API allows exploring the trace tree from a single packet (possibly randomly generated). At each API call encountered, we would be generating a symbolic packet representing a value in the complement of the field range encountered. This could be done ahead of time, eliminating the start-up phase of Maple where most packets are missed with respect to the trace tree. 
+
+%	+ Model makes easy to express constraints over the domain of possible packets (e.g. certain networks may only deal with hosts in a certain IP range)
+\paragraph{Constrained Topology and Packet Domain} The API's model allows for easy expression of constraints over the domain of possible packets, representing them as a series of nodes rooting the trace tree, each constraining the possible range of a field, with the false portion of the tree marked as unreachable.
+
+
+\section*{Stateful controller program}
+%	+ Relation data structure to express controller state that persists across controller executions. (e.g., can express MAC learning table, stateful firewall allowed hosts).
+
+\paragraph{State as Mutable Relations}
+Maple supports stateful controller programs through algorithm policies taking in an environment in addition to a packet and returning a forwarding decision and a modified environment. However, by allowing environments to be arbitrary data structures, the burden is on the programmer to invalidate the appropriate traces. Invalidating too many traces would be inefficient, while invalidating too few would be unsound. We would like to include in our API a relational data structure that programmers can use to capture the current state of the controller program. These principled environments would benefit from a built-in invalidation mechanism. We believe that this simple abstraction is general enough to represent most examples of environment used in real-world controller programs, for example a MAC-learning table, a firewall ACL or a mutable topology. 
+
+\paragraph{State in the Trace Tree}
+Because all state modifications would be performed through our API, we can capture these in the trace tree.  
+By analyzing the modifications of relation data structures through the API (adding and removing elements), we can further inform proactive generation. For example, if only certain ranges of field values can ever be added to a relation, then we can proactively generate rules to handle the ranges of values that can never appear in the relation. Also, we can discover through API calls that some relations, such as stateful firewall ACL, are monotonic.
+
+
+
+%\paragraph{Automatic Invalidation of Traces}
+	
+
+
+\section*{Estimated Timeline}
+\begin{itemize}
+\item By mid-April, we want to have:
+  \begin{itemize}
+  \item completed the design of the API
+  \item and devised a sound invalidation mechanism for traces affected by mutable relations
+  \end{itemize}
+  
+\item By the end of April, we want to have:
+  \begin{itemize}
+  \item a working implementation
+  \item preliminary evaluation including examples of stateful controller programs and percentage of packets forwarded to the controller
+  \end{itemize}
+\end{itemize}
+
+
+\bibliographystyle{plainnat}
+\bibliography{bibi}
+
+
+
+\end{document}

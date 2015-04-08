@@ -1,0 +1,106 @@
+\documentclass[12pt]{article}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[bottom=20mm, top=20mm, left=20mm, right=20mm]{geometry}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{bussproofs}
+\usepackage{comment}
+\usepackage[numbers]{natbib}
+\usepackage{graphicx} % Graphics support
+\usepackage{caption} % Improved captions
+\usepackage{subfig} % Inclusion of subfigures
+%\usepackage{subfigure}
+
+% adjust space between letters
+\usepackage{microtype}
+
+% adjust space between lines
+\linespread{1.05}
+
+% for header and footer
+\usepackage{fancyhdr}
+
+% change the font size of section
+%\usepackage{sectsty}
+%\sectionfont{\fontsize{12}{15}\selectfont}
+%\subsectionfont{\fontsize{11}{14}\selectfont}
+
+\usepackage{amsmath, amssymb}
+
+\pagestyle{fancy}
+
+\lhead{Department of Computer Science\\
+Princeton University}
+\chead{}
+% \rhead{\includegraphics[height=15mm]{princeton_logo.jpg}}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+
+% remove page numbers
+%\thispagestyle{empty}
+
+% no indent at the start of paragraphs
+\parindent=0em
+
+% for increasing space between paragraphs
+\newcommand{\emptyline}{\vspace{5pt}}
+
+%-----------------------------------------------------------
+
+\begin{document}
+\quad \\
+\quad \\
+\quad \\
+\centerline{ \large{Towards Range-Based Network Synthesis}}
+\vspace{1pt}\\
+\centerline{Ryan Beckett and Olivier Savary B\'{e}langer} \\
+\\
+\centerline{April 15, 2015} \\
+
+
+\section*{Introduction}
+% Including an example policy
+
+
+\section*{Algorithic Policies Revisited}
+% Explains what algorithmic policies are, how maple was handling them and the difference with our model
+
+\section*{API and Decision Trees}
+   \subsection*{Range-based Branching}
+   % Why range instead of actual value, pre-generation of rules using symbolic pre-execution
+
+   \subsection*{Built-in Relation with Automatic Invalidation}
+   % Relation with add and remove tuple of fields from a relation (empty at the begining), Inhabitant-based Branching 
+
+   % Computing which packets need to be sent to the controller (i.e. only the ones reaching an ``add'' or a ``remove'' node.
+   
+\section*{Implementation}
+%that's the hope...
+
+   \subsection*{Optimizations}
+   % 1) expand tree before add/remove nodes with a match on that relation ( based on add(p); add(p) == add(p) so can shortcircuit if p is already in the relation)
+   % 2) Prune dead subtree on empty ranges and add/remove which do not affect any inhabitant-based branching.
+
+
+\section*{Evaluation}
+% 1) optimality w.r.t. packets seen by the controler?
+% 2) more examples
+% 3) simulated run
+
+
+\section*{Related Work}
+% deeper comparison with Maple
+
+%???
+
+\section*{Future Work and Conclusion}
+
+
+\bibliographystyle{plainnat}
+\bibliography{bibi}
+
+
+
+\end{document}
