@@ -53,7 +53,7 @@ Princeton University}
 \quad \\
 \quad \\
 \quad \\
-\centerline{ \large{Towards Range-Based Network Synthesis}}
+\centerline{ \large{Red Oak: Something Something Algorithmic Policy}}
 \vspace{1pt}\\
 \centerline{Ryan Beckett and Olivier Savary B\'{e}langer} \\
 \\
@@ -63,6 +63,22 @@ Princeton University}
 \section*{Introduction}
 % Including an example policy
 
+\begin{figure}
+\begin{lstlisting}
+f(pkt):
+  if RO.InRange(pkt, src, 0, 10) then
+     RO.add(pkt, (dst, src), conn);
+     fw(gateway)
+  else if (RO.InSet(pkt, (src,dst), conn) then
+         fw(dst)   
+       else
+         drop
+       end
+  end                
+  \end{lstlisting}
+
+\caption{A Stateful Firewall}
+\end{figure}
 
 \section*{Algorithic Policies Revisited}
 % Explains what algorithmic policies are, how maple was handling them and the difference with our model
