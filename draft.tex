@@ -4,6 +4,7 @@
 \usepackage[bottom=20mm, top=20mm, left=20mm, right=20mm]{geometry}
 \usepackage{graphicx}
 \usepackage{enumitem}
+\usepackage{listings}
 \usepackage{bussproofs}
 \usepackage{comment}
 \usepackage[numbers]{natbib}
@@ -61,7 +62,25 @@ Princeton University}
 
 
 \section*{Introduction}
+% possibly in introduction instead?
+Maple \cite{Maple} proposes a SDN controller model where the behavior of the controller is defined by a function from packets to forwarding path, the algorithmic policy. The authors then show how to optimize the controller so that packets are handled without having to run the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. We identify a number of shortcoming to this model:
+\begin{enumerate}
+\item % packet value granularity too fine
+  \item % environmentgranularity too fine, no built-in support for dynamic controllers
+  \item % not proactive
+\end{enumerate}
+
+We present a new iteration of the model where
+\begin{enumerate}
+  \item calls to our API does not expose the values of a packet's field, answering instead boolean queries about the values being in a certain range
+  \item dynamic controllers are supported through a relation data-structure which is updated through an extended API
+  \item the trace tree can be generated from executing the policy on a single (potentially symbolic) packet.
+\end{enumerate}
+
+
 % Including an example policy
+
+
 
 \begin{figure}
 \begin{lstlisting}
@@ -81,18 +100,46 @@ f(pkt):
 \end{figure}
 
 \section*{Algorithic Policies Revisited}
-% Explains what algorithmic policies are, how maple was handling them and the difference with our model
+% Explains what algorithmic policies are, how maple was handling them and the difference with our model 
+
 
 \section*{API and Decision Trees}
    \subsection*{Range-based Branching}
    % Why range instead of actual value, pre-generation of rules using symbolic pre-execution
 
+   \begin{figure}
+\begin{lstlisting}
+Module RO
+
+Type pkt (* contains a range for each field *)
+
+Type field (* enum each field *)
+
+function InRange: pkt * field * value * value -> bool
+
+\end{lstlisting}
+
+\caption{Signature of the packet portion of the API}
+\end{figure}
+
+   
    
    % Can represent constraints on the ranges admissible given a certain topology as a series of ``true'' branches at the root of the tree.
    
    \subsection*{Built-in Relation with Automatic Invalidation}
    % Relation with add and remove tuple of fields from a relation (empty at the begining), Inhabitant-based Branching 
 
+   \begin{figure}
+     \begin{lstlisting}
+       
+function InRange: pkt * field * value * value -> bool
+
+\end{lstlisting}
+
+\caption{Signature of the relation portion of the API}
+\end{figure}
+
+   
    % Computing which packets need to be sent to the controller (i.e. only the ones reaching an ``add'' or a ``remove'' node.
    
 \section*{Implementation}
