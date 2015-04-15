@@ -78,20 +78,23 @@ To address these, we modify the model in the following way:
 \end{enumerate}
 
 
-% Including an example policy
-
+% Including an example policy, todo change 0 to 10 to actual IP
+Figure~\ref{fig:firewall-eg} displays a policy for a stateful firewall using our API. Sources from 0 to 10 are taken to be internal to the network. If a packet is sent from an internal host to an external host, the pair of internal and external host is added to a list of trusted connection. If a packet is received from an external host, we lookup the table to see if the connection is trusted, in which case we forward the packet to its destination, otherwise we drop it.
 
 
 \begin{figure}
 \begin{lstlisting}
 f(pkt):
   if RO.InRange(pkt, src, 0, 10) then
-     RO.add(pkt, (dst, src), conn);
-     fw(gateway)
-  else if (RO.InSet(pkt, (src,dst), conn) then
-         fw(dst)   
+     if RO.InRange(pkt, dst, 0, 10) then
+        RO.deliver()
+     else 
+        RO.add(pkt, (dst, src), trusted);
+        RO.deliver()
+  else if (RO.InSet(pkt, (src,dst), trusted) then
+         RO.deliver()
        else
-         drop
+         RO.drop
        end
   end                
   \end{lstlisting}
@@ -125,6 +128,11 @@ function InRange: pkt * field * value * value -> bool
    
    
    % Can represent constraints on the ranges admissible given a certain topology as a series of ``true'' branches at the root of the tree.
+
+
+   \subsection*{Forwarding Decision}
+   % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to dst)
+
    
    \subsection*{Built-in Relation with Automatic Invalidation}
    % Relation with add and remove tuple of fields from a relation (empty at the begining), Inhabitant-based Branching 
