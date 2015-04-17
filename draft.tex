@@ -1,4 +1,6 @@
 \documentclass[12pt]{article}
+\usepackage[latin1]{inputenc}
+
 \usepackage{times}
 \usepackage{latexsym}
 \usepackage[bottom=20mm, top=20mm, left=20mm, right=20mm]{geometry}
@@ -11,6 +13,24 @@
 \usepackage{graphicx} % Graphics support
 \usepackage{caption} % Improved captions
 \usepackage{subfig} % Inclusion of subfigures
+
+
+\usepackage{tikz}
+\usepackage{tikz-qtree}
+
+
+% Set the overall layout of the tree
+%\tikzstyle{level 1}=[level distance=3.5cm, sibling distance=3.5cm]
+%\tikzstyle{level 2}=[level distance=3.5cm, sibling distance=2cm]
+
+% Define styles for bags and leafs
+%\tikzstyle{leaf} = [draw=none,fill=none, text width=4em, text centered]
+%\tikzstyle{relation} = [ellipse, draw, text width=5em, text centered]
+%\tikzstyle{branch} = [rectangle, draw, text width=6em, text centered]
+
+
+
+
 %\usepackage{subfigure}
 
 % adjust space between letters
@@ -106,7 +126,7 @@ f(pkt):
        end
   end                
   \end{lstlisting}
-
+\label{fig:firewallcode}
 \caption{A Stateful Firewall}
 \end{figure}
 
@@ -134,8 +154,18 @@ function InRange: pkt * field * value * value -> bool
 
    
    
+
+  For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
+
+
+  \begin{figure}
+\label{fig:decisiontree}  
+\caption{Decision Tree for Stateful Firewall}     
+\end{figure}
+   
    % Can represent constraints on the ranges admissible given a certain topology as a series of ``true'' branches at the root of the tree.
 
+   
 
    \subsection*{Forwarding Decision}
    % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to dst)
