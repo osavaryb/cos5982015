@@ -62,13 +62,16 @@ Princeton University}
 
 
 \section*{Introduction}
-% possibly in introduction instead?
+
 Maple \cite{Maple} proposes a SDN controller model where the behavior of the controller is defined by a function from packets to forwarding path, the algorithmic policy. The authors then show how to optimize the controller so that packets are handled without having to run the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. We identify a number of shortcoming to this model:
 \begin{enumerate}
-\item % packet value granularity too fine
-  \item % environmentgranularity too fine, no built-in support for dynamic controllers
-  \item % not proactive
+\item When a field value is observe, the forwarding decision only works on packets with this exact value, even if the forwarding decision is made on a much coarser range of value.Similarly, after observing some value in the environment, the forwarding decision is specialize for that particular value
+  
+\item It no built-in environment datastructure with automatic invalidation of decision trace when the environment is modified, which is needed to implement dynamic controllers.
+  
+  \item Populating the decision tree requires seeing a high number of packets, potentially slowing down the network at start-up. 
 \end{enumerate}
+
 
 To address these, we modify the model in the following way:
 \begin{enumerate}
@@ -78,6 +81,11 @@ To address these, we modify the model in the following way:
 \end{enumerate}
 
 
+
+\section*{Algorithic Policies Revisited}
+% Explains what algorithmic policies are, how maple was handling them and the difference with our model 
+Algorithmic policies were introduced by Maple as a model for SDN controllers. An algorithmic policy consist of a function from packet to forwarding decision. Under this model, the network forwards packets as if this function was executed on each packet when entering the network. 
+
 % Including an example policy, todo change 0 to 10 to actual IP
 Figure~\ref{fig:firewall-eg} displays a policy for a stateful firewall using our API. Sources from 0 to 10 are taken to be internal to the network. If a packet is sent from an internal host to an external host, the pair of internal and external host is added to a list of trusted connection. If a packet is received from an external host, we lookup the table to see if the connection is trusted, in which case we forward the packet to its destination, otherwise we drop it.
 
@@ -85,13 +93,13 @@ Figure~\ref{fig:firewall-eg} displays a policy for a stateful firewall using our
 \begin{figure}
 \begin{lstlisting}
 f(pkt):
-  if RO.InRange(pkt, src, 0, 10) then
-     if RO.InRange(pkt, dst, 0, 10) then
+  if RO.in_range(pkt, src, 0, 10) then
+     if RO.in_range(pkt, dst, 0, 10) then
         RO.deliver()
      else 
         RO.add(pkt, (dst, src), trusted);
         RO.deliver()
-  else if (RO.InSet(pkt, (src,dst), trusted) then
+  else if (RO.in_set(pkt, (src,dst), trusted) then
          RO.deliver()
        else
          RO.drop
@@ -102,8 +110,7 @@ f(pkt):
 \caption{A Stateful Firewall}
 \end{figure}
 
-\section*{Algorithic Policies Revisited}
-% Explains what algorithmic policies are, how maple was handling them and the difference with our model 
+
 
 
 \section*{API and Decision Trees}
