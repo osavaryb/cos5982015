@@ -2,16 +2,13 @@
 open Map
 
 
-    
+type relation = string
 
-
-
-  
 type field = 
       IpSrc 
 	| IpDst 
 
-type range = int*int
+type range = int*int list
 
 module OrderedField = struct
 	type t = field
@@ -23,17 +20,34 @@ module FM = Map.Make(OrderedField)
 type packet = range FM.t
 
 type forwarding_decision =
-  | Deliver
-  | Drop
-  | ForwardTo of int
-  | Dub of forwarding_decision * forwarding_decision
+	| Deliver
+	| Drop
+	| ForwardTo of int
+	| Multicast of forwarding_decision * forwarding_decision
 
 type decision_tree =
-     | Leaf of forwarding_decision
-     | Branches of ((packet * decision_tree) list)  * ((packet * decision_tree) list)
+	| Root of decision_tree option
+    | Leaf of forwarding_decision
+    | Add of field list * relation * decision_tree
+    | Remove of field list * relation * decision_tree
+    | Inrange of range * field * ((packet * decision_tree) option) * ((packet * decision_tree) option)
 
-      
-      
+
+
+(* Global mutable decision tree *)
+let dtree = ref (Root None)
+
+
+
+let run (f: packet -> forwarding_decision) : unit = 
+	let sym_pkt = FM.empty in 
+	(* f sym_pkt; *)
+	()
+
+
+
+
+
 
 let max_value field = 
 	match field with 
@@ -42,26 +56,18 @@ let max_value field =
 
 let min_value _ = 0
 
-
-let intersection (lo,hi) (lo',hi') : range option = 
+let intersection'' ((lo,hi):int*int) (lo',hi') : range = 
 	assert (lo <= hi);
 	assert (lo' <= hi');
-	if hi' < lo || hi < lo' 
-	then None
-	else Some (max lo lo', min hi hi')
+	if lo' > hi || hi < lo' 
+	then []
+	else [(max lo lo', min hi hi')]
 
 
-
-(* probably don't need this 					     
 let rec intersection' r rs  : range =
 	match rs with 
 	| [] -> [] 
-	| x::xs ->
-	    (match (intersection'' r x) with
-	    | Some r' -> r'::(intersection' r xs)
-	    | None -> (intersection' r xs))
-
-
+	| x::xs -> (intersection'' r x) @ (intersection' r xs)
 
 let rec intersection rs1 rs2 : range = 
 	match rs1 with 
@@ -69,19 +75,23 @@ let rec intersection rs1 rs2 : range =
 	| r::rs -> (intersection' r rs2) @ (intersection rs rs2)
 
 
-
 let union (r1:range) (r2:range) : range = 
 	r1 @ r2
-*)
 
-(* TODO: instrument with code to generate the decision_tree *)	    
+
+
+
+
 let in_range (p: packet) (f: field) (r: range) : bool = 
 	try 
 	  let r' = FM.find f p in
 	  match intersection r r' with
 	  | Some _ -> true
 	  | None -> false
-	with Not_found -> true
+	with Not_found -> true (*
+		(match !dtree with 
+		 | Leaf fd -> 
+		 | Branches tru fal ->  )  *)
 
 
 
