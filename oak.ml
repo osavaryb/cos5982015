@@ -26,10 +26,11 @@ type forwarding_decision =
   | Deliver
   | Drop
   | ForwardTo of int
+  | Dub of forwarding_decision * forwarding_decision
 
 type decision_tree =
      | Leaf of forwarding_decision
-     | Branches of (packet * decision_tree) list
+     | Branches of ((packet * decision_tree) list)  * ((packet * decision_tree) list)
 
       
       
