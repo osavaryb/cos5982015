@@ -2,6 +2,7 @@
 open Map
 open Stack
 
+let debug = false
 
 type relation = string
 
@@ -39,6 +40,8 @@ type decision_tree =
  *
  ******************************************************)
 
+
+	  
 let string_of_field f = 
 	match f with 
 	| IpSrc -> "ipsrc"
@@ -98,11 +101,11 @@ let run (f: packet -> forwarding_decision) : unit =
 	Stack.push sym_pkt !next_pkts;
 	while not (Stack.is_empty !next_pkts) do
 	   let cur_pkt = Stack.pop !next_pkts in
-	   print_endline ("current packet is: "^ (string_of_packet cur_pkt)); (* debug *)
+	   if debug then print_endline ("current packet is: "^ (string_of_packet cur_pkt)) else ();
 		let fd = f cur_pkt in 
 		(!loc) := Leaf (cur_pkt, fd);
 		loc := root;
-		print_dtree !root (* debug *)
+		if debug then print_dtree !root else (); 
 	done
 
 
@@ -178,8 +181,8 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 		| _ -> failwith "Error [in_range: unhandled case]"
 	in 
 	let r' = try FM.find f !p with _ -> total_range in
-	print_endline ("in in_range for field "^(string_of_field f)^ " with inter: "^(string_of_range (intersection r r')));
-	aux (normalize_range (intersection r r')) (normalize_range (intersection (complement r) r'))
+	if debug then print_endline ("in in_range for field "^(string_of_field f)^ " with inter: "^(string_of_range (intersection r r'))) else ();
+	aux (normalize_range (intersection r r')) (normalize_range (intersection (complement r) r')) 
 		
 
 
@@ -226,8 +229,8 @@ let () =
 		 test_complement2; 
 		 test_complement3] in 
 	run_tests tests; *)
-	run f_simple
-(* 	print_dtree !root *)
+	run f_simple;
+ 	if debug then () else print_dtree !root
 
 
 
