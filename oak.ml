@@ -114,7 +114,7 @@ let total_range = [(min_value,max_value)]
 let intersection'' ((lo,hi):int*int) (lo',hi') : range = 
 	assert (lo <= hi);
 	assert (lo' <= hi');
-	if lo' > hi || hi < lo' 
+	if  hi < lo' || hi' < lo
 	then []
 	else [(max lo lo', min hi hi')]
 
@@ -134,15 +134,17 @@ let union (r1:range) (r2:range) : range =
 let complement' (lo,hi) : range = 
 	match lo=min_value, hi=max_value with 
 	| true, true ->  []
-	| true, false -> [(hi,max_value)]
-	| false, true -> [(min_value, lo)]
-	| false, false -> [(min_value,lo); (hi,max_value)]
+	| true, false -> [(hi+1,max_value)]
+	| false, true -> [(min_value, lo-1)]
+	| false, false -> [(min_value,lo-1); (hi+1,max_value)]
 
 let complement (r: range) : range = 
 	let comps = List.map complement' r in 
 	List.fold_left (fun acc c -> intersection acc c) [(min_value,max_value)] comps
 
-
+let normalize_range (r: range) : range =
+  r
+	  
 let in_range (p: packet) (f: field) (r: range) : bool = 
 	let aux x y  = 
 		match !(!loc) with 
@@ -168,12 +170,16 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 			 	true)
 		| Inrange (r',f', tru, fal) -> 
 		 	if r' = r && f' = f 
-		 	then (loc := fal; false)
+		 	then 
+			  (match x with
+                          | [] -> (loc := fal; false)
+			  | _ -> (loc := tru; true))
 		 	else failwith "Error [in_range: different values]"
 		| _ -> failwith "Error [in_range: unhandled case]"
 	in 
 	let r' = try FM.find f !p with _ -> total_range in
-	aux (intersection r r') (intersection (complement r) r') 
+	print_endline ("in in_range for field "^(string_of_field f)^ " with inter: "^(string_of_range (intersection r r')));
+	aux (normalize_range (intersection r r')) (normalize_range (intersection (complement r) r'))
 		
 
 
@@ -202,7 +208,7 @@ let test_complement3 () =
 
 let f_simple pkt = 
 	if in_range pkt IpSrc [(10,20)]
-	then if in_range pkt IpSrc [(0,15)] then Deliver else Drop
+	then if in_range pkt IpDst [(0,15)] then Deliver else Drop
 	else Drop
 
 let rec run_tests tests = 
