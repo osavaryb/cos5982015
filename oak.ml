@@ -42,7 +42,7 @@ let next_pkts = ref (Stack.create ())
 let run (f: packet -> forwarding_decision) : unit = 
 	let sym_pkt = ref FM.empty in 
 	Stack.push sym_pkt !next_pkts;
-	while Stack.is_empty !next_pkts do 
+	while not (Stack.is_empty !next_pkts) do
 		let cur_pkt = Stack.pop !next_pkts in 
 		let fd = f cur_pkt in 
 		(!loc) := Leaf (cur_pkt, fd);
