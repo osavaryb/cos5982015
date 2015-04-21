@@ -26,11 +26,11 @@ type forwarding_decision =
 	| Multicast of forwarding_decision * forwarding_decision
 
 type decision_tree =
-	| Root of decision_tree option
+	| Root of (decision_tree ref) option
     | Leaf of forwarding_decision
     | Add of field list * relation * decision_tree ref 
     | Remove of field list * relation * decision_tree ref 
-    | Inrange of range * field * ((packet * decision_tree) option) * ((packet * decision_tree) option)
+    | Inrange of range * field * ((packet * (decision_tree ref)) option) * ((packet * (decision_tree ref)) option)
 
 
 
@@ -41,7 +41,7 @@ let loc = dtree
 
 let run (f: packet -> forwarding_decision) : unit = 
 	let sym_pkt = FM.empty in 
-	(* while ... do f sym_pkt; *)
+	(* let fd = f sym_pkt; *)
 	()
 
 
@@ -89,9 +89,14 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 	  | [] -> false
 	  | _ -> true
 	with Not_found -> 
-		(match !dtree with 
-		 | Leaf fd -> 
-		 | Branches tru fal ->  )  *)
+		(match !loc with 
+		 | Leaf fd -> failwith "Not Possible"
+		 | Branches tru fal -> 
+		 	(match tru with 
+		 	 | None -> 
+		 	 	let p' = FM.insert f r p in 
+		 	 	loc := Branches (Some (p', None)) fal
+		 	 | Some (pkt, tree) ->          ) )
 
 
 
