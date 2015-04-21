@@ -33,7 +33,61 @@ type decision_tree =
     | Remove of field list * relation * decision_tree ref 
     | Inrange of range * field * (decision_tree ref) * (decision_tree ref)
 
+(******************************************************
+ *
+ *  Printing
+ *
+ ******************************************************)
 
+let string_of_field f = 
+	match f with 
+	| IpSrc -> "ipsrc"
+	| IpDst -> "ipdst"
+
+let string_of_interval (lo,hi) = 
+	" [" ^ (string_of_int lo) ^ ", " ^ (string_of_int hi)^ "] "
+
+let string_of_range (r : range) = 
+	List.fold_left (fun acc x -> acc ^ (string_of_interval x)) "" r 
+
+let string_of_packet (pkt : packet) = 
+    "<<"^(FM.fold (fun f r acc -> (string_of_field f)^" : "^(string_of_range r)^" || "^acc) !pkt "")^">>"
+    
+let rec string_of_fd (fd : forwarding_decision) =
+  match fd with
+  | Deliver -> "Deliver"
+  | Drop -> "Drop"
+  | ForwardTo i -> "Forward to "^ (string_of_int i)
+  | Multicast (fd1, fd2) -> "Multicasted: " ^  (string_of_fd fd1) ^ " and " ^ (string_of_fd fd2)
+
+
+    
+let rec repeat_str (n:int) (s:string) = 
+	if n = 0 then ""
+	else s ^ (repeat_str (n-1) s)
+
+
+		   
+let print_dtree (dt: decision_tree) : unit = 
+	let rec aux dt level = 
+		let str = repeat_str level "\t" in 
+		match dt with
+		| Dummy -> print_endline (str ^ "Dummy")
+		| Leaf (pkt,fd) -> print_endline (str ^ (string_of_fd fd))
+		| Inrange (r,f,tru,fal) -> 
+		    print_endline (str ^ "Inrange: field=" ^ (string_of_field f) ^ " range=" ^ (string_of_range r));
+		    aux !tru (level + 1);
+		    aux !fal (level + 1)
+
+		| _ -> print_endline "damn"
+	in 
+	aux dt 0
+
+
+
+
+
+	  
 (* Global mutable decision tree *)
 let root = ref Dummy
 let loc = ref root
@@ -43,10 +97,12 @@ let run (f: packet -> forwarding_decision) : unit =
 	let sym_pkt = ref FM.empty in 
 	Stack.push sym_pkt !next_pkts;
 	while not (Stack.is_empty !next_pkts) do
-		let cur_pkt = Stack.pop !next_pkts in 
+	   let cur_pkt = Stack.pop !next_pkts in
+	   print_endline ("current packet is: "^ (string_of_packet cur_pkt)); (* debug *)
 		let fd = f cur_pkt in 
 		(!loc) := Leaf (cur_pkt, fd);
-		loc := root
+		loc := root;
+		print_dtree !root (* debug *)
 	done
 
 
@@ -120,42 +176,6 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 	aux (intersection r r') (intersection (complement r) r') 
 		
 
-(******************************************************
- *
- *  Debugging
- *
- ******************************************************)
-
-let string_of_field f = 
-	match f with 
-	| IpSrc -> "ipsrc"
-	| IpDst -> "ipdst"
-
-let string_of_interval (lo,hi) = 
-	"lo:" ^ (string_of_int lo) ^ " hi: " ^ (string_of_int hi)
-
-let string_of_range (r : range) = 
-	List.fold_left (fun acc x -> acc ^ (string_of_interval x)) "" r 
-
-let rec repeat_str (n:int) (s:string) = 
-	if n = 0 then ""
-	else s ^ (repeat_str (n-1) s)
-
-let print_dtree (dt: decision_tree) : unit = 
-	let rec aux dt level = 
-		let str = repeat_str level "\t" in 
-		match dt with
-		| Dummy -> print_endline (str ^ "Dummy")
-		| Leaf (pkt,fd) -> print_endline (str ^ "Leaf")
-		| Inrange (r,f,tru,fal) -> 
-			print_endline (str ^ "Inrange: field=" ^ (string_of_field f) ^ " range=" ^ (string_of_range r));
-			aux !fal (level + 1);
-			aux !tru (level + 1)
-		| _ -> print_endline "damn"
-	in 
-	aux dt 0
-
-
 
 (******************************************************
  *
@@ -182,7 +202,7 @@ let test_complement3 () =
 
 let f_simple pkt = 
 	if in_range pkt IpSrc [(10,20)]
-	then Deliver
+	then if in_range pkt IpSrc [(0,15)] then Deliver else Drop
 	else Drop
 
 let rec run_tests tests = 
@@ -200,8 +220,8 @@ let () =
 		 test_complement2; 
 		 test_complement3] in 
 	run_tests tests; *)
-	run f_simple;
-	print_dtree !root
+	run f_simple
+(* 	print_dtree !root *)
 
 
 
