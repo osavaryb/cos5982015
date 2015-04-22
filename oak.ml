@@ -2,7 +2,7 @@
 open Map
 open Stack
 
-let debug = false
+let debug = true
 
 type relation = string
 
@@ -48,13 +48,13 @@ let string_of_field f =
 	| IpDst -> "ipdst"
 
 let string_of_interval (lo,hi) = 
-	" [" ^ (string_of_int lo) ^ ", " ^ (string_of_int hi)^ "] "
+	"[" ^ (string_of_int lo) ^ ", " ^ (string_of_int hi)^ "]"
 
 let string_of_range (r : range) = 
-	List.fold_left (fun acc x -> acc ^ (string_of_interval x)) "" r 
+	List.fold_left (fun acc x -> (if acc = "" then "" else acc^"U")^(string_of_interval x)) "" r 
 
 let string_of_packet (pkt : packet) = 
-    "<<"^(FM.fold (fun f r acc -> (string_of_field f)^" : "^(string_of_range r)^" || "^acc) !pkt "")^">>"
+    "<<"^(FM.fold (fun f r acc -> (string_of_field f)^" :"^(string_of_range r)^(if acc = "" then "" else " || "^acc)) !pkt "")^">>"
     
 let rec string_of_fd (fd : forwarding_decision) =
   match fd with
@@ -181,7 +181,7 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 		| _ -> failwith "Error [in_range: unhandled case]"
 	in 
 	let r' = try FM.find f !p with _ -> total_range in
-	if debug then print_endline ("in in_range for field "^(string_of_field f)^ " with inter: "^(string_of_range (intersection r r'))) else ();
+	if debug then print_endline ("in in_range for field "^(string_of_field f)^ " with inter:"^(string_of_range (intersection r r'))) else ();
 	aux (normalize_range (intersection r r')) (normalize_range (intersection (complement r) r')) 
 		
 
