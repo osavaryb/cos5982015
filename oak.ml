@@ -52,14 +52,11 @@ let string_of_interval (lo,hi) =
 let string_of_range (r : range) = 
 	List.fold_left (fun acc x -> (if acc = "" then "" else acc^"U")^(string_of_interval x)) "" r 
 
-let string_of_packet (pkt : packet) = 
-	let fields = 
-		FM.fold 
-			(fun f r acc ->
-				let comb = (if acc = "" then "" else " || "^acc) in 
-				(string_of_field f) ^ " :" ^ (string_of_range r) ^ comb
-			) !pkt "" in 
-    "<<" ^ fields ^ ">>"
+let string_of_packet (pkt : packet) =
+	let aux f r acc = 
+		let sep = (if acc = "" then "" else " || "^acc) in 
+		(string_of_field f) ^ " :" ^ (string_of_range r) ^ sep
+	in "<<" ^ ( FM.fold aux !pkt "") ^ ">>"
     
 let rec string_of_fd (fd : forwarding_decision) =
   match fd with
