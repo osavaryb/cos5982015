@@ -2,7 +2,7 @@
 open Map
 open Stack
 
-let debug = true
+let debug = false
 
 type relation = string
 
@@ -34,13 +34,12 @@ type decision_tree =
     | Remove of field list * relation * decision_tree ref 
     | Inrange of range * field * (decision_tree ref) * (decision_tree ref)
 
+
 (******************************************************
  *
  *  Printing
  *
  ******************************************************)
-
-
 	  
 let string_of_field f = 
 	match f with 
@@ -54,7 +53,13 @@ let string_of_range (r : range) =
 	List.fold_left (fun acc x -> (if acc = "" then "" else acc^"U")^(string_of_interval x)) "" r 
 
 let string_of_packet (pkt : packet) = 
-    "<<"^(FM.fold (fun f r acc -> (string_of_field f)^" :"^(string_of_range r)^(if acc = "" then "" else " || "^acc)) !pkt "")^">>"
+	let fields = 
+		FM.fold 
+			(fun f r acc ->
+				let comb = (if acc = "" then "" else " || "^acc) in 
+				(string_of_field f) ^ " :" ^ (string_of_range r) ^ comb
+			) !pkt "" in 
+    "<<" ^ fields ^ ">>"
     
 let rec string_of_fd (fd : forwarding_decision) =
   match fd with
@@ -63,14 +68,10 @@ let rec string_of_fd (fd : forwarding_decision) =
   | ForwardTo i -> "Forward to "^ (string_of_int i)
   | Multicast (fd1, fd2) -> "Multicasted: " ^  (string_of_fd fd1) ^ " and " ^ (string_of_fd fd2)
 
-
-    
 let rec repeat_str (n:int) (s:string) = 
 	if n = 0 then ""
 	else s ^ (repeat_str (n-1) s)
 
-
-		   
 let print_dtree (dt: decision_tree) : unit = 
 	let rec aux dt level = 
 		let str = repeat_str level "\t" in 
@@ -81,16 +82,24 @@ let print_dtree (dt: decision_tree) : unit =
 		    print_endline (str ^ "Inrange: field=" ^ (string_of_field f) ^ " range=" ^ (string_of_range r));
 		    aux !tru (level + 1);
 		    aux !fal (level + 1)
-
-		| _ -> print_endline "damn"
+		| _ -> failwith "Error Unimplemented"
 	in 
 	aux dt 0
 
+let rec print_fds (dt: decision_tree) : unit = 
+	match dt with 
+	| Dummy -> failwith "Unexplored Branch"
+	| Leaf (pkt,fd) -> print_endline ((string_of_packet pkt) ^ " -> " ^ (string_of_fd fd))
+	| Inrange (_,_,tru,fal) -> print_fds !tru; print_fds !fal
+	| _ -> failwith "Error Unimplemented"
 
 
+(******************************************************
+ *
+ *  Decision Tree
+ *
+ ******************************************************)
 
-
-	  
 (* Global mutable decision tree *)
 let root = ref Dummy
 let loc = ref root
@@ -108,11 +117,9 @@ let run (f: packet -> forwarding_decision) : unit =
 		if debug then print_dtree !root else (); 
 	done
 
-
 let max_value = 1000
 let min_value = 0
 let total_range = [(min_value,max_value)]
-
 
 let intersection'' ((lo,hi):int*int) (lo',hi') : range = 
 	assert (lo <= hi);
@@ -146,7 +153,21 @@ let complement (r: range) : range =
 	List.fold_left (fun acc c -> intersection acc c) [(min_value,max_value)] comps
 
 let normalize_range (r: range) : range =
-  r
+	let rec aux r = 
+		match r with 
+		| [] -> []
+		| [x] -> [x]
+		| x::y::tl ->
+			let (lo,hi) = x in 
+			let (lo',hi') = y in  
+			if lo' <= hi then 
+				let merged = (lo, max hi hi') in 
+				aux (merged::tl)
+			else 
+				x::(aux (y::tl))
+	in 
+	let sorted = List.sort compare r in 
+	aux sorted
 	  
 let in_range (p: packet) (f: field) (r: range) : bool = 
 	let aux x y  = 
@@ -158,30 +179,23 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 		 	(!loc) := Inrange (r,f, new_tru, new_fal);
 		 	(match x,y with 
 		 	 | [], [] -> failwith "Both empty"
-		 	 | [], _ -> 
-		 		loc := new_fal;
-		 		p := pfal;
-		 		false
-		 	 | _, [] -> 
-			 	loc := new_tru;
-			 	p := ptru;
-			 	true
-			 | _, _ -> 
-			 	loc := new_tru;
-			 	p := ptru;
-				Stack.push (ref pfal) !next_pkts;
-			 	true)
+		 	 | [], _ -> loc := new_fal; p := pfal; false
+		 	 | _, [] -> loc := new_tru; p := ptru; true
+			 | _, _ ->  loc := new_tru; p := ptru; Stack.push (ref pfal) !next_pkts; true)
 		| Inrange (r',f', tru, fal) -> 
-		 	if r' = r && f' = f 
-		 	then 
+		 	if r' = r && f' = f then 
 			  (match x with
-                          | [] -> (loc := fal; false)
-			  | _ -> (loc := tru; true))
+               | [] -> (loc := fal; false)
+			   | _ -> (loc := tru; true))
 		 	else failwith "Error [in_range: different values]"
 		| _ -> failwith "Error [in_range: unhandled case]"
 	in 
 	let r' = try FM.find f !p with _ -> total_range in
-	if debug then print_endline ("in in_range for field "^(string_of_field f)^ " with inter:"^(string_of_range (intersection r r'))) else ();
+	if debug then 
+		let field_str = "in in_range for field "^(string_of_field f) in 
+		let inter_str = " with inter:"^(string_of_range (intersection r r')) in 
+		print_endline (field_str ^ inter_str)
+	else ();
 	aux (normalize_range (intersection r r')) (normalize_range (intersection (complement r) r')) 
 		
 
@@ -230,7 +244,7 @@ let () =
 		 test_complement3] in 
 	run_tests tests; *)
 	run f_simple;
- 	if debug then () else print_dtree !root
+ 	if debug then () else print_fds !root
 
 
 
