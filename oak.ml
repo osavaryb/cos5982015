@@ -37,6 +37,9 @@ type decision_tree =
     | Add of packet * field list * relation * decision_tree ref 
     | Remove of packet * field list * relation * decision_tree ref 
     | Inrange of range * field * (decision_tree ref) * (decision_tree ref)
+
+type policy = decision_tree
+
 (* 
  "Leaf pkt fd" forwards the current packet as denoted by forwarding decision fd. pkt is the most general (symbolic) packet that can reach this node
  "Add pkt fl rel dt" adds the tuple of field values corresponding to the fields in fl to the relation rel before procceding with dt. pkt is the most general (symbolic) packet that can reach this node
@@ -95,12 +98,19 @@ let print_dtree (dt: decision_tree) : unit =
 	in 
 	aux dt 0
 
-let rec print_fds (dt: decision_tree) : unit = 
-	match dt with 
-	| Dummy -> failwith "Unexplored Branch"
-	| Leaf (pkt,fd) -> print_endline ((string_of_packet pkt) ^ " -> " ^ (string_of_fd fd))
-	| Inrange (_,_,tru,fal) -> print_fds !tru; print_fds !fal
-	| _ -> failwith "Error Unimplemented"
+let rec decisions (p: policy) : (packet*forwarding_decision) list = 
+	match p with 
+	| Dummy -> []
+	| Leaf (pkt,fd) -> [(pkt,fd)]
+	| Inrange (_,_,tru,fal) -> (decisions !tru) @ (decisions !fal)
+	| _ -> failwith "Not Implemented"
+
+let string_of_policy (p: policy) : string = 
+	List.fold_left 
+		(fun acc (pkt,fd) -> acc ^ "\n" ^ (string_of_packet pkt) ^ " --> " ^ (string_of_fd fd)) 
+		"" (decisions p)
+	
+
 
 
 (******************************************************
@@ -114,7 +124,11 @@ let root = ref Dummy
 let loc = ref root
 let next_pkts = ref (Stack.create ())
 
-let run (f: packet -> forwarding_decision) : unit = 
+
+let compile (f: packet -> forwarding_decision) : policy = 
+	root := Dummy;
+	loc := root;
+	next_pkts := (Stack.create ());
 	let sym_pkt = ref FM.empty in 
 	Stack.push sym_pkt !next_pkts;
 	while not (Stack.is_empty !next_pkts) do
@@ -124,7 +138,7 @@ let run (f: packet -> forwarding_decision) : unit =
 		(!loc) := Leaf (cur_pkt, fd);
 		loc := root;
 		if debug then print_dtree !root else (); 
-	done
+	done; !root
 
 let max_value = 1000
 let min_value = 0
@@ -244,10 +258,6 @@ let test_complement3 () =
 	let r = [(10,20); (900,max_value)] in
 	print_endline (string_of_range (complement r))
 
-let f_simple pkt = 
-	if in_range pkt IpSrc [(10,20)]
-	then if in_range pkt IpDst [(0,15)] then Deliver else Drop
-	else Drop
 
 let rec run_tests tests = 
 	match tests with 
@@ -256,7 +266,7 @@ let rec run_tests tests =
 		t (); 
 		print_endline ""; 
 		run_tests ts
-
+(*
 let () = 
 	(* let tests = 
 		[test_intersection; 
@@ -266,7 +276,7 @@ let () =
 	run_tests tests; *)
 	run f_simple;
  	if debug then () else print_fds !root
-
+*)
 
 
 
