@@ -2,7 +2,7 @@
 open Map
 open Stack
 
-let debug = false
+let debug = true
 
 type relation = string
 
@@ -29,6 +29,7 @@ type forwarding_decision =
 	| Drop
 	| ForwardTo of int
 	| Multicast of forwarding_decision * forwarding_decision
+	| Ctrl
 
 type decision_tree =
 	| Dummy
@@ -73,8 +74,8 @@ let string_of_packet (pkt : packet) =
 		let sep = (if acc = "" then "" else " || "^acc) in 
 		(string_of_field f) ^ " :" ^ (string_of_range r) ^ sep
 	in 
-	let (fs,_,_) = !pkt in 
-	"<<" ^ ( FM.fold aux fs "") ^ ">>"
+	let (fs,rel_tru,rel_fal) = !pkt in 
+	"<<" ^ ( FM.fold aux fs "") ^ ">> in ("^(String.concat "," rel_tru)^") and not in ("^(String.concat "," rel_fal)^")"
     
 let rec string_of_fd (fd : forwarding_decision) =
   match fd with
@@ -82,6 +83,7 @@ let rec string_of_fd (fd : forwarding_decision) =
   | Drop -> "Drop"
   | ForwardTo i -> "Forward to "^ (string_of_int i)
   | Multicast (fd1, fd2) -> "Multicasted: " ^  (string_of_fd fd1) ^ " and " ^ (string_of_fd fd2)
+  | Ctrl -> "Send to controller"
 
 let rec repeat_str (n:int) (s:string) = 
 	if n = 0 then ""
@@ -97,7 +99,16 @@ let print_dtree (dt: decision_tree) : unit =
 		    print_endline (str ^ "Inrange: field=" ^ (string_of_field f) ^ " range=" ^ (string_of_range r));
 		    aux !tru (level + 1);
 		    aux !fal (level + 1)
-		| _ -> failwith "Error Unimplemented"
+		| Add (pkt, fields, rel, dt) ->
+		    print_endline (str^ "Adding ("^(String.concat "," (List.map string_of_field fields))^") to "^rel);
+		    aux !dt (level+1)
+		| Remove (pkt, fields, rel, dt) ->
+		    print_endline (str^ "Removing ("^(String.concat "," (List.map string_of_field fields))^") to "^rel);
+		    aux !dt (level+1)
+		| Inrelation(fields, rel, tru, fal) ->
+		    print_endline (str ^ "Inrel: fields (" ^(String.concat "," (List.map string_of_field fields))^ ") in " ^rel);
+		    aux !tru (level + 1);
+		    aux !fal (level + 1)
 	in 
 	aux dt 0
 
@@ -106,7 +117,9 @@ let rec decisions (p: policy) : (packet*forwarding_decision) list =
 	| Dummy -> []
 	| Leaf (pkt,fd) -> [(pkt,fd)]
 	| Inrange (_,_,tru,fal) -> (decisions !tru) @ (decisions !fal)
-	| _ -> []
+	| Inrelation (_, _, tru, fal) -> (decisions !tru) @ (decisions !fal)
+	| Add (pkt, _, _, _) -> [(pkt, Ctrl)]
+	| Remove (pkt, _, _, _) -> [(pkt, Ctrl)]
 
 let string_of_policy (p: policy) : string = 
 	List.fold_left 
