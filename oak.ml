@@ -22,9 +22,8 @@ end
 module FM = Map.Make(OrderedField)
 
 (* symbolic packet consists of a mapping between fields and ranges *)
-type packet = (range FM.t) ref
+type packet = ((range FM.t) * relation list * relation list) ref
 
-      
 type forwarding_decision =
 	| Deliver
 	| Drop
@@ -37,6 +36,8 @@ type decision_tree =
     | Add of packet * field list * relation * decision_tree ref 
     | Remove of packet * field list * relation * decision_tree ref 
     | Inrange of range * field * (decision_tree ref) * (decision_tree ref)
+    | Inrelation of field list * relation * decision_tree ref * decision_tree ref
+    (* 	| ForwardAccordingTo of relation * int list * field list * int *)
 
 type policy = decision_tree
 
@@ -71,7 +72,9 @@ let string_of_packet (pkt : packet) =
 	let aux f r acc = 
 		let sep = (if acc = "" then "" else " || "^acc) in 
 		(string_of_field f) ^ " :" ^ (string_of_range r) ^ sep
-	in "<<" ^ ( FM.fold aux !pkt "") ^ ">>"
+	in 
+	let (fs,_,_) = !pkt in 
+	"<<" ^ ( FM.fold aux fs "") ^ ">>"
     
 let rec string_of_fd (fd : forwarding_decision) =
   match fd with
@@ -103,7 +106,7 @@ let rec decisions (p: policy) : (packet*forwarding_decision) list =
 	| Dummy -> []
 	| Leaf (pkt,fd) -> [(pkt,fd)]
 	| Inrange (_,_,tru,fal) -> (decisions !tru) @ (decisions !fal)
-	| _ -> failwith "Not Implemented"
+	| _ -> []
 
 let string_of_policy (p: policy) : string = 
 	List.fold_left 
@@ -129,7 +132,7 @@ let compile (f: packet -> forwarding_decision) : policy =
 	root := Dummy;
 	loc := root;
 	next_pkts := (Stack.create ());
-	let sym_pkt = ref FM.empty in 
+	let sym_pkt = ref (FM.empty, [], []) in 
 	Stack.push sym_pkt !next_pkts;
 	while not (Stack.is_empty !next_pkts) do
 	   let cur_pkt = Stack.pop !next_pkts in
@@ -198,18 +201,18 @@ let normalize_range (r: range) : range =
 	aux sorted
 
 (* 
- Intended meaning: in_range p f r returns true if the value of field f of packet p is in range r, and false otherwise 
-
  Implementation: While building the decision tree using symbolic packets,
        If "in_range p f r" is called by the traced function while at an unexplored location, we add an Inrange node to the decision tree, refines the fielf f of symbolic packet p with range r and explore the true branch of the decision tree. We also add a packet with field f refined with the complement of range r to subsequently explore the false branch of the tree. 
        If "in_range p f r" is called while tracing back on an existing Inrange node for field f and range r, we explore the true branch if the tested range r intersects with the p's range for field f, and explore the false branch otherwise.
 *)
 let in_range (p: packet) (f: field) (r: range) : bool = 
+	let (pkt, rel_tru, rel_fal) = !p in 
+
 	let aux x y  = 
 		match !(!loc) with 
 		| Dummy -> 
-			let ptru = FM.add f x !p in 
-			let pfal = FM.add f y !p in 
+			let ptru = (FM.add f x pkt, rel_tru, rel_fal) in 
+			let pfal = (FM.add f y pkt, rel_tru, rel_fal) in 
 		 	let new_tru, new_fal = ref Dummy, ref Dummy in 
 		 	(!loc) := Inrange (r,f, new_tru, new_fal);
 		 	(match x,y with 
@@ -225,7 +228,7 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 		 	else failwith "Error [in_range: different values]"
 		| _ -> failwith "Error [in_range: unhandled case]"
 	in 
-	let r' = try FM.find f !p with _ -> total_range in
+	let r' = try FM.find f pkt with _ -> total_range in
 	if debug then 
 		let field_str = "in in_range for field "^(string_of_field f) in 
 		let inter_str = " with inter:"^(string_of_range (intersection r r')) in 
@@ -233,6 +236,50 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 	else ();
 	aux (normalize_range (intersection r r')) (normalize_range (intersection (complement r) r')) 
 		
+
+let add (p: packet) (fields: field list) (rel: relation) : unit = 
+	match !(!loc) with 
+	| Dummy -> 
+		let child = ref Dummy in 
+		(!loc) := Add (p, fields, rel, child);
+		loc := child
+	| Add (p',fields', rel', dt) -> 
+		if fields' = fields && rel' = rel then 
+			loc := dt
+		else failwith "Error [add: different values]"
+	| _ -> failwith "Error [add: unhandled case]"
+
+
+let remove (p: packet) (fields: field list) (rel: relation) : unit = 
+	match !(!loc) with 
+	| Dummy -> 
+		let child = ref Dummy in 
+		(!loc) := Remove (p, fields, rel, child);
+		loc := child
+	| Remove (p',fields', rel', dt) -> 
+		if fields' = fields && rel' = rel then 
+			loc := dt
+		else failwith "Error [remove: different values]"
+	| _ -> failwith "Error [remove: unhandled case]"
+
+let in_relation (p: packet) (fields: field list) (rel: relation) : bool = 
+	let (pkt, rel_tru, rel_fal) = !p in 
+	match !(!loc) with 
+	| Dummy ->
+		Stack.push (ref (pkt, rel_tru, rel::rel_fal)) !next_pkts;
+		p := (pkt, rel::rel_tru, rel_fal);
+		let ctru,cfal = ref Dummy, ref Dummy in 
+		(!loc) := Inrelation (fields, rel, ctru, cfal);
+		loc := ctru;
+		true
+	| Inrelation (fields', rel', tru, fal) ->
+		if fields' = fields && rel' = rel then 
+			(match List.mem rel rel_tru, List.mem rel rel_fal with 
+			 | true, false -> loc := tru; true 
+			 | false, true -> loc := fal; false 
+			 | _ -> failwith "Error [inrelation: false and true]")
+		else failwith "Error [inrelation: different values]"
+	| _ -> failwith "Error [inrelation: unhandled case]"
 
 
 (******************************************************
@@ -266,18 +313,14 @@ let rec run_tests tests =
 		t (); 
 		print_endline ""; 
 		run_tests ts
-(*
+
 let () = 
 	(* let tests = 
 		[test_intersection; 
 		 test_complement1; 
 		 test_complement2; 
 		 test_complement3] in 
-	run_tests tests; *)
-	run f_simple;
- 	if debug then () else print_fds !root
-*)
-
+	run_tests tests *) ()
 
 
 
