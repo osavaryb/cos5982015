@@ -10,6 +10,8 @@ type field =
       IpSrc 
 	| IpDst 
 
+
+(* range is a disjunction of intervals. For example, [ (10,20), (25,100)] represents the range [10, 20]U[25,100] *)
 type range = (int*int) list
 
 module OrderedField = struct
@@ -19,8 +21,10 @@ end
 
 module FM = Map.Make(OrderedField)
 
+(* symbolic packet consists of a mapping between fields and ranges *)
 type packet = (range FM.t) ref
 
+      
 type forwarding_decision =
 	| Deliver
 	| Drop
@@ -29,18 +33,26 @@ type forwarding_decision =
 
 type decision_tree =
 	| Dummy
-    | Leaf of packet * forwarding_decision
-    | Add of field list * relation * decision_tree ref 
-    | Remove of field list * relation * decision_tree ref 
+    | Leaf of packet * forwarding_decision   
+    | Add of packet * field list * relation * decision_tree ref 
+    | Remove of packet * field list * relation * decision_tree ref 
     | Inrange of range * field * (decision_tree ref) * (decision_tree ref)
+(* 
+ "Leaf pkt fd" forwards the current packet as denoted by forwarding decision fd. pkt is the most general (symbolic) packet that can reach this node
+ "Add pkt fl rel dt" adds the tuple of field values corresponding to the fields in fl to the relation rel before procceding with dt. pkt is the most general (symbolic) packet that can reach this node
+ "Remove pkt fl rel dt" removes the tuple of field values corresponding to the fields in fl to the relation rel before procceding with dt. pkt is the most general (symbolic) packet that can reach this node
+ "Inrange r f dtrue dfalse" proceeds with dtrue if field f of the current packet is in range r and with dfalse otherwise.
+
+*)
 
 
+	  
 (******************************************************
  *
  *  Printing
  *
  ******************************************************)
-	  
+
 let string_of_field f = 
 	match f with 
 	| IpSrc -> "ipsrc"
@@ -118,6 +130,8 @@ let max_value = 1000
 let min_value = 0
 let total_range = [(min_value,max_value)]
 
+
+(* returns the intersection between two intervals, if any *)   
 let intersection'' ((lo,hi):int*int) (lo',hi') : range = 
 	assert (lo <= hi);
 	assert (lo' <= hi');
@@ -125,10 +139,12 @@ let intersection'' ((lo,hi):int*int) (lo',hi') : range =
 	then []
 	else [(max lo lo', min hi hi')]
 
+(* lists the intersection between r and each of the intervals in rs *)
 let rec intersection' r rs  : range =
 	match rs with 
 	| [] -> [] 
 	| x::xs -> (intersection'' r x) @ (intersection' r xs)
+
 
 let rec intersection rs1 rs2 : range = 
 	match rs1 with 
@@ -149,6 +165,7 @@ let complement (r: range) : range =
 	let comps = List.map complement' r in 
 	List.fold_left (fun acc c -> intersection acc c) [(min_value,max_value)] comps
 
+(* after normalization, a range is a list of  disjoint, increasing intervals *)
 let normalize_range (r: range) : range =
 	let rec aux r = 
 		match r with 
@@ -165,7 +182,14 @@ let normalize_range (r: range) : range =
 	in 
 	let sorted = List.sort compare r in 
 	aux sorted
-	  
+
+(* 
+ Intended meaning: in_range p f r returns true if the value of field f of packet p is in range r, and false otherwise 
+
+ Implementation: While building the decision tree using symbolic packets,
+       If "in_range p f r" is called by the traced function while at an unexplored location, we add an Inrange node to the decision tree, refines the fielf f of symbolic packet p with range r and explore the true branch of the decision tree. We also add a packet with field f refined with the complement of range r to subsequently explore the false branch of the tree. 
+       If "in_range p f r" is called while tracing back on an existing Inrange node for field f and range r, we explore the true branch if the tested range r intersects with the p's range for field f, and explore the false branch otherwise.
+*)
 let in_range (p: packet) (f: field) (r: range) : bool = 
 	let aux x y  = 
 		match !(!loc) with 
