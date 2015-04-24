@@ -366,29 +366,30 @@ let in_relation (p: packet) (fields: field list) (rel: relation) : bool =
  *
  ******************************************************)
 
-(*
+
 module SM = Map.Make(String)	      
 	      
-let environment = (int list) list SM.t 
-	      
+type env = ((int list) list) SM.t 
+let environment = ref (SM.empty)
 	      
 let load_policy (pol:policy) : unit =
 	root := pol;
-	loc := root  
+	loc := root;
+        environment := SM.empty
 
 let rec evaluate (p: packet') (pol:policy) : forwarding_decision =
     match pol with
-    | Leaf(p', fd) -> return fd
+    | Leaf(p', fd) -> fd
     | Inrange(r, f, tru, fal) ->
-	let r' = try FM.find f pkt with _ -> failwith "Error [evaluate: Inrange, uninitialized field]" in
+	let r' = try FM.find f p with _ -> failwith "Error [evaluate: Inrange, uninitialized field]" in
 	(match intersection r' r with 
 	| [] -> evaluate p (!tru)
 	|  _ -> evaluate p (!fal))  	
    | Add(_, fields, rel, dt') -> evaluate p (!dt')
    | Remove(_, fields, rel, dt') -> evaluate p (!dt')
-   | Inrelation(rel, fields, tru, fal) ->  
-    | _ -> failwith "Unimplemented"
- *)
+   | Inrelation(rel, fields, tru, fal) ->  failwith "Unimplemented"
+   | _ -> failwith "Unimplemented"
+
 (******************************************************
  *
  *  Testing...
