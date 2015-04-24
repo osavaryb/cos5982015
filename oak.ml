@@ -1,4 +1,6 @@
+(* TODO : verify when in_relation branching  that choice hasn't been made yet*)
 
+  
 open Map
 open Stack
 
@@ -24,7 +26,8 @@ module FM = Map.Make(OrderedField)
 
 (* symbolic packet consists of a mapping between fields and ranges *)
 type packet' = range FM.t
-type packet = (packet' * relation list * relation list) ref
+type packet = (packet' * (relation*(field list)) list * (relation*(field list)) list) ref 
+
 
 type forwarding_decision =
 	| Deliver
@@ -71,13 +74,18 @@ let string_of_interval (lo,hi) =
 let string_of_range (r : range) = 
 	List.fold_left (fun acc x -> (if acc = "" then "" else acc^"U")^(string_of_interval x)) "" r 
 
+
+let string_of_rel (rel, fields) =
+  rel^" : ["^(String.concat "," (List.map string_of_field fields))^"]"
+  
+  
 let string_of_packet (pkt : packet) =
 	let aux f r acc = 
 		let sep = (if acc = "" then "" else " || "^acc) in 
 		(string_of_field f) ^ " :" ^ (string_of_range r) ^ sep
 	in 
 	let (fs,rel_tru,rel_fal) = !pkt in 
-	"<<" ^ ( FM.fold aux fs "") ^ ">> in ("^(String.concat "," rel_tru)^") and not in ("^(String.concat "," rel_fal)^")"
+	"<<" ^ ( FM.fold aux fs "") ^ ">> in ("^(String.concat "," (List.map string_of_rel rel_tru))^") and not in ("^(String.concat "," (List.map string_of_rel rel_fal))^")"
     
 let rec string_of_fd (fd : forwarding_decision) =
   match fd with
@@ -260,8 +268,8 @@ let add' (p: packet) (fields: field list) (rel: relation) : unit =
 	match !(!loc) with 
 	| Dummy -> 
 	    let child = ref Dummy in
-	    p := (pkt, rel_tru, rel::rel_fal);
-	    Stack.push (ref (pkt, rel::rel_tru, rel_fal)) !next_pkts;
+	    p := (pkt, rel_tru, (rel, fields)::rel_fal);
+	    Stack.push (ref (pkt, (rel, fields)::rel_tru, rel_fal)) !next_pkts;
 	    (!loc) := Inrelation(rel, fields, ref Dummy ,ref (Add (p, fields, rel, child)));
 	    loc := child
 	| Add (p',fields', rel', dt) -> 
@@ -270,7 +278,7 @@ let add' (p: packet) (fields: field list) (rel: relation) : unit =
 		else failwith "Error [add': different values]"
 	| Inrelation(rel', fields', tru, fal) ->
 	    if fields' = fields && rel' = rel then 
-	      (match List.mem rel rel_tru, List.mem rel rel_fal with 
+	      (match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
 	      | true, false ->
 		  (match (!fal) with
 		  | Add ( p', fields', rel', dt') -> loc := tru
@@ -302,8 +310,8 @@ let remove' (p: packet) (fields: field list) (rel: relation) : unit =
 	match !(!loc) with 
 	| Dummy -> 
 	    let child = ref Dummy in
-	    p := (pkt, rel::rel_tru, rel_fal);
-	    Stack.push (ref (pkt, rel_tru, rel::rel_fal)) !next_pkts;
+	    p := (pkt, (rel, fields)::rel_tru, rel_fal);
+	    Stack.push (ref (pkt, rel_tru, (rel, fields)::rel_fal)) !next_pkts;
 	    (!loc) := Inrelation(rel, fields, ref (Remove (p, fields, rel, child)), ref Dummy);
 	    loc := child
 	| Remove (p',fields', rel', dt) -> 
@@ -312,7 +320,7 @@ let remove' (p: packet) (fields: field list) (rel: relation) : unit =
 		else failwith "Error [remove': different values]"
 	| Inrelation(rel', fields', tru, fal) ->
 	    if fields' = fields && rel' = rel then 
-	      (match List.mem rel rel_tru, List.mem rel rel_fal with 
+	      (match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
 	      | true, false ->
 		  (match (!tru) with
 		  | Remove ( p', fields', rel', dt') -> loc := fal
@@ -344,15 +352,15 @@ let in_relation (p: packet) (fields: field list) (rel: relation) : bool =
 	let (pkt, rel_tru, rel_fal) = !p in 
 	match !(!loc) with 
 	| Dummy ->
-		Stack.push (ref (pkt, rel_tru, rel::rel_fal)) !next_pkts;
-		p := (pkt, rel::rel_tru, rel_fal);
+		Stack.push (ref (pkt, rel_tru, (rel, fields)::rel_fal)) !next_pkts;
+		p := (pkt, (rel, fields)::rel_tru, rel_fal);
 		let ctru,cfal = ref Dummy, ref Dummy in 
 		(!loc) := Inrelation (rel, fields, ctru, cfal);
 		loc := ctru;
 		true
 	| Inrelation (rel', fields', tru, fal) ->
 		if fields' = fields && rel' = rel then 
-			(match List.mem rel rel_tru, List.mem rel rel_fal with 
+			(match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
 			 | true, false -> loc := tru; true 
 			 | false, true -> loc := fal; false 
 			 | _ -> failwith "Error [inrelation: false and true]")
@@ -403,7 +411,7 @@ let rec evaluate_rules (p: packet') (rules: rules) : forwarding_decision =
 
 let rec evaluate_pol (p: packet') (pol:policy) : forwarding_decision =
 	let aux fields rel = 
-		let vals = List.map (fun fld -> try FM.find fld p with _ -> failwith "Field not in Relation") fields in 
+		let vals = List.map (fun fld -> try FM.find fld p with _ -> failwith "Error [evaluate_pol aux: Field not in Relation]") fields in 
    		let vals' = List.map (fun x -> fst (List.hd x)) vals in 
    		let tups = try SM.find rel !environment with _ -> [] in 
    		(vals',tups)
@@ -411,7 +419,7 @@ let rec evaluate_pol (p: packet') (pol:policy) : forwarding_decision =
     match pol with
     | Leaf(p', fd) -> fd
     | Inrange(r, f, tru, fal) ->
-		let r' = try FM.find f p with _ -> failwith "Error [evaluate: Inrange, uninitialized field]" in
+		let r' = try FM.find f p with _ -> failwith "Error [evaluate_pol: Inrange, uninitialized field]" in
 		(match intersection r' r with 
 		| [] -> evaluate_pol p (!tru)
 		|  _ -> evaluate_pol p (!fal))  	
@@ -428,9 +436,27 @@ let rec evaluate_pol (p: packet') (pol:policy) : forwarding_decision =
    		if List.mem vals' tups 
    		then evaluate_pol p !tru
    		else evaluate_pol p !fal
-   | _ -> failwith "Unimplemented"
+   | Dummy -> failwith "Error [evaluate_pol: Reached an unexplored part of the policy]"
 
-let rec build_rules (sr: sym_rules): rules = failwith "Implement Me"
+
+
+	 
+let rec build_rules (srs: sym_rules): rules =
+  let refine_packet p (rel, flds) fd =
+	try 
+	  let _crel = SM.find rel !environment in
+	  [(p, fd)]
+    with _ ->  [] (* no rule, relation is empty *)
+  in
+  match srs with
+  | (p, fd)::srs' ->
+      let rs' = build_rules srs' in
+      let (p', trel, frel) = !p in
+      (* for each of the relation in trel *)
+               (* for each of the tuple in the relation *)
+              (* make a rule intersecting the packet p' with that tuple  (may result in no rule if empty) *) 
+      List.append (List.fold_left (fun acc rh -> List.append (refine_packet p' rh fd) acc) [] trel) rs'
+  | [] -> []
 
 let rec simulate (p:packet') (r:rules) (pol:policy) : rules * forwarding_decision =
 	match evaluate_rules p r with 
