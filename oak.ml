@@ -367,17 +367,51 @@ let in_relation (p: packet) (fields: field list) (rel: relation) : bool =
  ******************************************************)
 
 
-module SM = Map.Make(String)	      
-	      
+module SM = Map.Make(String)	     
+
+type rule = packet' * forwarding_decision
+type sym_rule = packet * forwarding_decision
+type rules = rule list
+type sym_rules = sym_rule list
+
 type env = ((int list) list) SM.t 
+
+
 let environment = ref (SM.empty)
+
+
 	      
 let load_policy (pol:policy) : unit =
 	root := pol;
 	loc := root;
-        environment := SM.empty
+    environment := SM.empty
 
-let rec evaluate (p: packet') (pol:policy) : forwarding_decision =
+
+let matches (p: packet') (pattern: packet') : bool = 
+	let aux k v acc = 
+		acc &&		
+		(try 
+			let v' = FM.find k p in   
+			if (intersection v v') = v' then 
+				true
+			else 
+				false
+		with _ -> true)
+	in
+	FM.fold aux pattern true
+
+
+let rec evaluate_rules (p: packet') (rules: rules) : forwarding_decision =
+	match rules with 
+	| [] -> Ctrl
+	| (p',fd)::rs -> 
+		if matches p p' then fd 
+		else evaluate_rules p rs
+
+
+
+
+let rec evaluate_pol (p: packet') (pol:policy) : forwarding_decision =
     match pol with
     | Leaf(p', fd) -> fd
     | Inrange(r, f, tru, fal) ->
@@ -389,6 +423,16 @@ let rec evaluate (p: packet') (pol:policy) : forwarding_decision =
    | Remove(_, fields, rel, dt') -> evaluate p (!dt')
    | Inrelation(rel, fields, tru, fal) ->  failwith "Unimplemented"
    | _ -> failwith "Unimplemented"
+
+let rec simulate (p:packet') (r:rules) (pol:policy) : forwarding_decision =
+
+
+let rec build_rules (sr: sym_rules): rules =
+
+
+
+
+
 
 (******************************************************
  *
