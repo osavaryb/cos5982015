@@ -1,5 +1,3 @@
-
-
 (* a standard packet field *)
 type field = IpSrc | IpDst 
 (* range is a union of intervals *)
@@ -15,8 +13,7 @@ type forwarding_decision =
 	| Ctrl
 
 (* abstract packet type *)
-
-type packet 
+type packet
 (* abstract policy type *)
 type policy
 
@@ -24,8 +21,6 @@ type policy
 val min_value: int 
 (* maximum value for a range interval *)
 val max_value: int
-(* compile a user-function into a policy *)
-val compile: (packet -> forwarding_decision) -> policy
 (* show the forwarding decisions for a policy *)
 val string_of_policy: policy -> string
 (* in_range p f r returns true if the value of field f of packet p is in range r, and false otherwise *)
@@ -36,5 +31,7 @@ val add: packet -> field list -> relation -> unit
 val remove: packet -> field list -> relation -> unit
 (* test if a packet's fields are in a relation *)
 val in_relation: packet -> field list -> relation -> bool
-
-
+(* compile a user-function into a policy *)
+val compile: (packet -> forwarding_decision) -> policy
+(* run the user-defined policy with a set of input packets *)
+val run: policy -> ((field * int) list) list  -> unit

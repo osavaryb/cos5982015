@@ -380,12 +380,6 @@ type env = ((int list) list) SM.t
 let environment = ref (SM.empty)
 
 
-	      
-let load_policy (pol:policy) : unit =
-	root := pol;
-	loc := root;
-    environment := SM.empty
-
 
 let matches (p: packet') (pattern: packet') : bool = 
 	let aux k v acc = 
@@ -400,7 +394,6 @@ let matches (p: packet') (pattern: packet') : bool =
 	in
 	FM.fold aux pattern true
 
-
 let rec evaluate_rules (p: packet') (rules: rules) : forwarding_decision =
 	match rules with 
 	| [] -> Ctrl
@@ -408,26 +401,64 @@ let rec evaluate_rules (p: packet') (rules: rules) : forwarding_decision =
 		if matches p p' then fd 
 		else evaluate_rules p rs
 
-
-
-
 let rec evaluate_pol (p: packet') (pol:policy) : forwarding_decision =
+	let aux fields rel = 
+		let vals = List.map (fun fld -> try FM.find fld p with _ -> failwith "Field not in Relation") fields in 
+   		let vals' = List.map (fun x -> fst (List.hd x)) vals in 
+   		let tups = try SM.find rel !environment with _ -> [] in 
+   		(vals',tups)
+	in 
     match pol with
     | Leaf(p', fd) -> fd
     | Inrange(r, f, tru, fal) ->
-	let r' = try FM.find f p with _ -> failwith "Error [evaluate: Inrange, uninitialized field]" in
-	(match intersection r' r with 
-	| [] -> evaluate p (!tru)
-	|  _ -> evaluate p (!fal))  	
-   | Add(_, fields, rel, dt') -> evaluate p (!dt')
-   | Remove(_, fields, rel, dt') -> evaluate p (!dt')
-   | Inrelation(rel, fields, tru, fal) ->  failwith "Unimplemented"
+		let r' = try FM.find f p with _ -> failwith "Error [evaluate: Inrange, uninitialized field]" in
+		(match intersection r' r with 
+		| [] -> evaluate_pol p (!tru)
+		|  _ -> evaluate_pol p (!fal))  	
+   | Add(_, fields, rel, dt') -> 
+   		let vals',tups = aux fields rel in
+   		environment := SM.add rel (vals'::tups) !environment;
+   		evaluate_pol p (!dt')
+   | Remove(_, fields, rel, dt') ->
+   		let vals',tups = aux fields rel in
+   		environment := SM.add rel (List.filter (fun t -> not (t=vals')) tups) !environment;
+   		evaluate_pol p (!dt')
+   | Inrelation(rel, fields, tru, fal) ->
+      	let vals',tups = aux fields rel in
+   		if List.mem vals' tups 
+   		then evaluate_pol p !tru
+   		else evaluate_pol p !fal
    | _ -> failwith "Unimplemented"
 
-let rec simulate (p:packet') (r:rules) (pol:policy) : forwarding_decision =
+let rec build_rules (sr: sym_rules): rules = failwith "Implement Me"
 
+let rec simulate (p:packet') (r:rules) (pol:policy) : rules * forwarding_decision =
+	match evaluate_rules p r with 
+	| Ctrl -> (build_rules (decisions pol), evaluate_pol p pol)
+	| fd -> (r,fd)
 
-let rec build_rules (sr: sym_rules): rules =
+let run (pol: policy) (inputs: ((field*int) list) list) : unit = 
+	let srules = decisions pol in 
+	let rules = ref (build_rules srules) in 
+	let rec aux pkts =
+		match pkts with 
+		| [] -> ()
+		| p::ps ->
+			let (rules',fd) = simulate p !rules pol in 
+			let msg = "forwarded " ^ (string_of_packet (ref (p, [], []))) in 
+			let msg = msg ^ "according to " ^ (string_of_fd fd) in 
+			rules := rules';
+			print_endline msg;
+			aux ps
+	in 
+	let rec to_packet' fvalues = 
+		match fvalues with 
+		| [] -> FM.empty
+		| (fld,v)::vs -> FM.add fld [(v,v)] (to_packet' vs)
+	in
+	let pkts = List.map to_packet' inputs in 
+	aux pkts
+
 
 
 
