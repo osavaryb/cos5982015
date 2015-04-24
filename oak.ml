@@ -3,7 +3,8 @@ open Map
 open Stack
 
 let debug = true
-
+let o1 = true
+    
 type relation = string
 
 type field = 
@@ -22,7 +23,8 @@ end
 module FM = Map.Make(OrderedField)
 
 (* symbolic packet consists of a mapping between fields and ranges *)
-type packet = ((range FM.t) * relation list * relation list) ref
+type packet' = range FM.t
+type packet = (packet' * relation list * relation list) ref
 
 type forwarding_decision =
 	| Deliver
@@ -37,7 +39,7 @@ type decision_tree =
     | Add of packet * field list * relation * decision_tree ref 
     | Remove of packet * field list * relation * decision_tree ref 
     | Inrange of range * field * (decision_tree ref) * (decision_tree ref)
-    | Inrelation of field list * relation * decision_tree ref * decision_tree ref
+    | Inrelation of relation * field list * decision_tree ref * decision_tree ref
     (* 	| ForwardAccordingTo of relation * int list * field list * int *)
 
 type policy = decision_tree
@@ -105,7 +107,7 @@ let print_dtree (dt: decision_tree) : unit =
 		| Remove (pkt, fields, rel, dt) ->
 		    print_endline (str^ "Removing ("^(String.concat "," (List.map string_of_field fields))^") to "^rel);
 		    aux !dt (level+1)
-		| Inrelation(fields, rel, tru, fal) ->
+		| Inrelation(rel, fields, tru, fal) ->
 		    print_endline (str ^ "Inrel: fields (" ^(String.concat "," (List.map string_of_field fields))^ ") in " ^rel);
 		    aux !tru (level + 1);
 		    aux !fal (level + 1)
@@ -250,7 +252,37 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 	aux (normalize_range (intersection r r')) (normalize_range (intersection (complement r) r')) 
 		
 
-let add (p: packet) (fields: field list) (rel: relation) : unit = 
+
+
+(* Same as add but also creates alternative routes without add node *)
+let add' (p: packet) (fields: field list) (rel: relation) : unit =
+  let (pkt, rel_tru, rel_fal) = !p in 
+	match !(!loc) with 
+	| Dummy -> 
+	    let child = ref Dummy in
+	    p := (pkt, rel_tru, rel::rel_fal);
+	    Stack.push (ref (pkt, rel::rel_tru, rel_fal)) !next_pkts;
+	    (!loc) := Inrelation(rel, fields, ref Dummy ,ref (Add (p, fields, rel, child)));
+	    loc := child
+	| Add (p',fields', rel', dt) -> 
+		if fields' = fields && rel' = rel then 
+			loc := dt
+		else failwith "Error [add': different values]"
+	| Inrelation(rel', fields', tru, fal) ->
+	    if fields' = fields && rel' = rel then 
+	      (match List.mem rel rel_tru, List.mem rel rel_fal with 
+	      | true, false ->
+		  (match (!fal) with
+		  | Add ( p', fields', rel', dt') -> loc := tru
+		  | _ -> failwith "Error [add': add node expected after shadow-inrelation]"
+		   )
+	      | false, true -> loc := fal
+	      | _ -> failwith "Error [add': false and true]")
+	| _ -> failwith "Error [add': unhandled case]"
+	  
+	  
+let add (p: packet) (fields: field list) (rel: relation) : unit =
+        if o1 then add' p fields rel else 
 	match !(!loc) with 
 	| Dummy -> 
 		let child = ref Dummy in 
@@ -263,7 +295,37 @@ let add (p: packet) (fields: field list) (rel: relation) : unit =
 	| _ -> failwith "Error [add: unhandled case]"
 
 
-let remove (p: packet) (fields: field list) (rel: relation) : unit = 
+	      
+
+let remove' (p: packet) (fields: field list) (rel: relation) : unit =
+  let (pkt, rel_tru, rel_fal) = !p in 
+	match !(!loc) with 
+	| Dummy -> 
+	    let child = ref Dummy in
+	    p := (pkt, rel::rel_tru, rel_fal);
+	    Stack.push (ref (pkt, rel_tru, rel::rel_fal)) !next_pkts;
+	    (!loc) := Inrelation(rel, fields, ref (Remove (p, fields, rel, child)), ref Dummy);
+	    loc := child
+	| Remove (p',fields', rel', dt) -> 
+		if fields' = fields && rel' = rel then 
+			loc := dt
+		else failwith "Error [remove': different values]"
+	| Inrelation(rel', fields', tru, fal) ->
+	    if fields' = fields && rel' = rel then 
+	      (match List.mem rel rel_tru, List.mem rel rel_fal with 
+	      | true, false ->
+		  (match (!tru) with
+		  | Remove ( p', fields', rel', dt') -> loc := fal
+		  | _ -> failwith "Error [remove': add node expected after shadow-inrelation]"
+		   )
+	      | false, true -> loc := fal
+	      | _ -> failwith "Error [add': false and true]")
+	| _ -> failwith "Error [add': unhandled case]"
+
+
+	      
+let remove (p: packet) (fields: field list) (rel: relation) : unit =
+        if o1 then remove' p fields rel else
 	match !(!loc) with 
 	| Dummy -> 
 		let child = ref Dummy in 
@@ -275,6 +337,9 @@ let remove (p: packet) (fields: field list) (rel: relation) : unit =
 		else failwith "Error [remove: different values]"
 	| _ -> failwith "Error [remove: unhandled case]"
 
+	      
+	      
+	      
 let in_relation (p: packet) (fields: field list) (rel: relation) : bool = 
 	let (pkt, rel_tru, rel_fal) = !p in 
 	match !(!loc) with 
@@ -282,10 +347,10 @@ let in_relation (p: packet) (fields: field list) (rel: relation) : bool =
 		Stack.push (ref (pkt, rel_tru, rel::rel_fal)) !next_pkts;
 		p := (pkt, rel::rel_tru, rel_fal);
 		let ctru,cfal = ref Dummy, ref Dummy in 
-		(!loc) := Inrelation (fields, rel, ctru, cfal);
+		(!loc) := Inrelation (rel, fields, ctru, cfal);
 		loc := ctru;
 		true
-	| Inrelation (fields', rel', tru, fal) ->
+	| Inrelation (rel', fields', tru, fal) ->
 		if fields' = fields && rel' = rel then 
 			(match List.mem rel rel_tru, List.mem rel rel_fal with 
 			 | true, false -> loc := tru; true 
@@ -295,6 +360,35 @@ let in_relation (p: packet) (fields: field list) (rel: relation) : bool =
 	| _ -> failwith "Error [inrelation: unhandled case]"
 
 
+(******************************************************
+ *
+ *  Runtime system
+ *
+ ******************************************************)
+
+(*
+module SM = Map.Make(String)	      
+	      
+let environment = (int list) list SM.t 
+	      
+	      
+let load_policy (pol:policy) : unit =
+	root := pol;
+	loc := root  
+
+let rec evaluate (p: packet') (pol:policy) : forwarding_decision =
+    match pol with
+    | Leaf(p', fd) -> return fd
+    | Inrange(r, f, tru, fal) ->
+	let r' = try FM.find f pkt with _ -> failwith "Error [evaluate: Inrange, uninitialized field]" in
+	(match intersection r' r with 
+	| [] -> evaluate p (!tru)
+	|  _ -> evaluate p (!fal))  	
+   | Add(_, fields, rel, dt') -> evaluate p (!dt')
+   | Remove(_, fields, rel, dt') -> evaluate p (!dt')
+   | Inrelation(rel, fields, tru, fal) ->  
+    | _ -> failwith "Unimplemented"
+ *)
 (******************************************************
  *
  *  Testing...
