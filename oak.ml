@@ -442,10 +442,20 @@ let rec evaluate_pol (p: packet') (pol:policy) : forwarding_decision =
 
 	 
 let rec build_rules (srs: sym_rules): rules =
+  let rec aux p fd flds fi =
+    (match flds, fi with
+    | (f::flds'), (i::fi') ->
+	let r = try FM.find f p with _ -> total_range in
+	(match (normalize_range (intersection [(i,i)] r)) with
+	| [] -> []
+	| r' -> let p' = FM.add f r' p in
+	  aux p' fd flds' fi')
+    | [], [] -> [(p, fd)]
+    | _,_ -> failwith "Error [build_rules aux: mismatched field and projection number]" ) in
   let refine_packet p (rel, flds) fd =
 	try 
-	  let _crel = SM.find rel !environment in
-	  [(p, fd)]
+	  let crel = SM.find rel !environment in
+	  List.fold_left (fun acc fi -> (aux p fd flds fi)@acc)  [] crel 
     with _ ->  [] (* no rule, relation is empty *)
   in
   match srs with
@@ -460,7 +470,8 @@ let rec build_rules (srs: sym_rules): rules =
 
 let rec simulate (p:packet') (r:rules) (pol:policy) : rules * forwarding_decision =
 	match evaluate_rules p r with 
-	| Ctrl -> (build_rules (decisions pol), evaluate_pol p pol)
+	| Ctrl -> let fd = evaluate_pol p pol in
+	          (build_rules (decisions pol), fd)
 	| fd -> (r,fd)
 
 let run (pol: policy) (inputs: ((field*int) list) list) : unit = 
