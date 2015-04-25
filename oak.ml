@@ -464,8 +464,10 @@ let rec build_rules (srs: sym_rules): rules =
       let (p', trel, frel) = !p in
       (* for each of the relation in trel *)
                (* for each of the tuple in the relation *)
-              (* make a rule intersecting the packet p' with that tuple  (may result in no rule if empty) *) 
-      List.append (List.fold_left (fun acc rh -> List.append (refine_packet p' rh fd) acc) [] trel) rs'
+              (* make a rule intersecting the packet p' with that tuple  (may result in no rule if empty) *)
+     ( match trel with
+      | [] -> [(p', fd)]
+      | _ -> List.append (List.fold_left (fun acc rh -> List.append (refine_packet p' rh fd) acc) [] trel) rs')
   | [] -> []
 
 let rec simulate (p:packet') (r:rules) (pol:policy) : rules * forwarding_decision =
