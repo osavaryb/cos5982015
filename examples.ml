@@ -16,10 +16,13 @@ let firewall pkt =
 		then Deliver 
 		else Drop)
 
+let firewall_test_packets = [ [(IpSrc,150); (IpDst, 10)] ; [(IpSrc,10); (IpDst, 150)]; [(IpSrc,150); (IpDst, 10)]; [(IpSrc, 150); (IpDst, 9)]]	    
+	    
 
 let main () = 
 	let policy = Oak.compile firewall in 
-	let fds = Oak.string_of_policy policy in 
-	print_endline fds
+	let fds = Oak.string_of_policy policy in
+	print_endline fds;
+	run policy firewall_test_packets 
 
 let _ = main ()

@@ -78,14 +78,18 @@ let string_of_range (r : range) =
 let string_of_rel (rel, fields) =
   rel^" : ["^(String.concat "," (List.map string_of_field fields))^"]"
   
-  
-let string_of_packet (pkt : packet) =
+
+let string_of_packet' (pkt': packet') = 
 	let aux f r acc = 
 		let sep = (if acc = "" then "" else " || "^acc) in 
 		(string_of_field f) ^ " :" ^ (string_of_range r) ^ sep
 	in 
+	"<<" ^(FM.fold aux pkt' ""  )^ ">>"
+  
+let string_of_packet (pkt : packet) =
 	let (fs,rel_tru,rel_fal) = !pkt in 
-	"<<" ^ ( FM.fold aux fs "") ^ ">> in ("^(String.concat "," (List.map string_of_rel rel_tru))^") and not in ("^(String.concat "," (List.map string_of_rel rel_fal))^")"
+	let pstr = (string_of_packet' fs) in
+	  pstr^"in ("^(String.concat "," (List.map string_of_rel rel_tru))^") and not in ("^(String.concat "," (List.map string_of_rel rel_fal))^")"
     
 let rec string_of_fd (fd : forwarding_decision) =
   match fd with
@@ -137,7 +141,12 @@ let string_of_policy (p: policy) : string =
 		"" (decisions p)
 	
 
-
+let rec string_of_rules (rs:(packet' * forwarding_decision) list) =
+  match rs with
+  | [] -> ""
+  | (p, fd)::rs' ->
+      let str = string_of_rules rs' in
+      " | "^(string_of_packet' p)^" ---> "^(string_of_fd fd)^"  \n"^str
 
 (******************************************************
  *
@@ -421,8 +430,8 @@ let rec evaluate_pol (p: packet') (pol:policy) : forwarding_decision =
     | Inrange(r, f, tru, fal) ->
 		let r' = try FM.find f p with _ -> failwith "Error [evaluate_pol: Inrange, uninitialized field]" in
 		(match intersection r' r with 
-		| [] -> evaluate_pol p (!tru)
-		|  _ -> evaluate_pol p (!fal))  	
+		| [] -> evaluate_pol p (!fal)
+		|  _ -> evaluate_pol p (!tru))  	
    | Add(_, fields, rel, dt') -> 
    		let vals',tups = aux fields rel in
    		environment := SM.add rel (vals'::tups) !environment;
@@ -466,25 +475,30 @@ let rec build_rules (srs: sym_rules): rules =
                (* for each of the tuple in the relation *)
               (* make a rule intersecting the packet p' with that tuple  (may result in no rule if empty) *)
      ( match trel with
-      | [] -> [(p', fd)]
+      | [] -> (p', fd)::rs'
       | _ -> List.append (List.fold_left (fun acc rh -> List.append (refine_packet p' rh fd) acc) [] trel) rs')
   | [] -> []
 
 let rec simulate (p:packet') (r:rules) (pol:policy) : rules * forwarding_decision =
 	match evaluate_rules p r with 
 	| Ctrl -> let fd = evaluate_pol p pol in
-	          (build_rules (decisions pol), fd)
-	| fd -> (r,fd)
+	          let rules' = build_rules (decisions pol) in
+	  
+	          print_endline "Sent to controller";
+		  print_endline (string_of_rules rules');
+	          (rules', fd)
+	| fd -> print_endline "Matched at switch"; (r,fd)
 
 let run (pol: policy) (inputs: ((field*int) list) list) : unit = 
 	let srules = decisions pol in 
-	let rules = ref (build_rules srules) in 
+	let rules = ref (build_rules srules) in
 	let rec aux pkts =
 		match pkts with 
 		| [] -> ()
 		| p::ps ->
+		    (print_endline " -------- processing packet ----------");
 			let (rules',fd) = simulate p !rules pol in 
-			let msg = "forwarded " ^ (string_of_packet (ref (p, [], []))) in 
+			let msg = "forwarded " ^ (string_of_packet' p) in 
 			let msg = msg ^ "according to " ^ (string_of_fd fd) in 
 			rules := rules';
 			print_endline msg;
@@ -495,7 +509,9 @@ let run (pol: policy) (inputs: ((field*int) list) list) : unit =
 		| [] -> FM.empty
 		| (fld,v)::vs -> FM.add fld [(v,v)] (to_packet' vs)
 	in
-	let pkts = List.map to_packet' inputs in 
+	let pkts = List.map to_packet' inputs in
+	let str = string_of_rules !rules in
+	print_endline ("Starting to run controller with switch rules : \n"^str);
 	aux pkts
 
 
