@@ -17,7 +17,7 @@ let firewall pkt =
 		Deliver)
 	else 
 		(if in_relation pkt [IpSrc; IpDst] "conn"
-		then (remove pkt [IpSrc; IpDst] "conn"; Deliver) 
+		then Deliver 
 		else Drop)
 
 let firewall_test_packets = 
