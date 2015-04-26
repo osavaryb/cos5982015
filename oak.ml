@@ -289,12 +289,11 @@ let add' (p: packet) (fields: field list) (rel: relation) : unit =
 	| Inrelation(rel', fields', tru, fal) ->
 	    if fields' = fields && rel' = rel then 
 	      (match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
-	      | true, false ->
-		  (match (!fal) with
-		  | Add ( p', fields', rel', dt') -> loc := tru
-		  | _ -> failwith "Error [add': add node expected after shadow-inrelation]"
-		   )
-	      | false, true -> loc := fal
+	      | true, _ ->
+			  (match (!fal) with
+			  | Add ( p', fields', rel', dt') -> loc := tru
+			  | _ -> failwith "Error [add': add node expected after shadow-inrelation]")
+	      | false, _ -> loc := fal
 	      | _ -> failwith "Error [add': false and true]")
 	| _ -> failwith "Error [add': unhandled case]"
 	  
@@ -331,14 +330,14 @@ let remove' (p: packet) (fields: field list) (rel: relation) : unit =
 	| Inrelation(rel', fields', tru, fal) ->
 	    if fields' = fields && rel' = rel then 
 	      (match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
-	      | true, false ->
+	      | true, _ ->
 		  (match (!tru) with
 		  | Remove ( p', fields', rel', dt') -> loc := fal
 		  | _ -> failwith "Error [remove': add node expected after shadow-inrelation]"
 		   )
-	      | false, true -> loc := fal
-	      | _ -> failwith "Error [add': false and true]")
-	| _ -> failwith "Error [add': unhandled case]"
+	      | false, _ -> loc := fal
+	      | _ -> failwith "Error [remove': false and true]")
+	| _ -> failwith "Error [remove': unhandled case]"
 
 
 	      
@@ -371,8 +370,8 @@ let in_relation (p: packet) (fields: field list) (rel: relation) : bool =
 	| Inrelation (rel', fields', tru, fal) ->
 		if fields' = fields && rel' = rel then 
 			(match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
-			 | true, false -> loc := tru; true 
-			 | false, true -> loc := fal; false 
+			 | true, _ -> loc := tru; true 
+			 | false, _ -> loc := fal; false 
 			 | _ -> failwith "Error [inrelation: false and true]")
 		else failwith "Error [inrelation: different values]"
 	| _ -> failwith "Error [inrelation: unhandled case]"
@@ -403,11 +402,7 @@ let matches (p: packet') (pattern: packet') : bool =
 	let aux k v acc = 
 		acc &&		
 		(try 
-			let v' = FM.find k p in   
-			if (intersection v v') = v' then 
-				true
-			else 
-				false
+			let v' = FM.find k p in (intersection v v') = v'
 		with _ -> true)
 	in
 	FM.fold aux pattern true
