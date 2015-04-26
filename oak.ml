@@ -136,9 +136,10 @@ let rec decisions (p: policy) : (packet*forwarding_decision) list =
 	| Remove (pkt, _, _, _) -> [(pkt, Ctrl)]
 
 let string_of_policy (p: policy) : string = 
-	List.fold_left 
+	let str = List.fold_left 
 		(fun acc (pkt,fd) -> acc ^ "\n" ^ (string_of_packet pkt) ^ " --> " ^ (string_of_fd fd)) 
-		"" (decisions p)
+		"" (decisions p) in 
+	str ^ "\n"
 	
 
 let rec string_of_rules (rs:(packet' * forwarding_decision) list) =
@@ -480,28 +481,27 @@ let rec build_rules (srs: sym_rules): rules =
   | [] -> []
 
 let rec simulate (p:packet') (r:rules) (pol:policy) : rules * forwarding_decision =
+	print_endline ("Packet: " ^ (string_of_packet' p));
 	match evaluate_rules p r with 
 	| Ctrl -> let fd = evaluate_pol p pol in
 	          let rules' = build_rules (decisions pol) in
-	  
 	          print_endline "Sent to controller";
-		  print_endline (string_of_rules rules');
+		  	  print_endline (string_of_rules rules');
 	          (rules', fd)
 	| fd -> print_endline "Matched at switch"; (r,fd)
 
 let run (pol: policy) (inputs: ((field*int) list) list) : unit = 
 	let srules = decisions pol in 
 	let rules = ref (build_rules srules) in
+	print_endline (string_of_policy pol);
 	let rec aux pkts =
 		match pkts with 
 		| [] -> ()
 		| p::ps ->
 		    (print_endline " -------- processing packet ----------");
 			let (rules',fd) = simulate p !rules pol in 
-			let msg = "forwarded " ^ (string_of_packet' p) in 
-			let msg = msg ^ "according to " ^ (string_of_fd fd) in 
 			rules := rules';
-			print_endline msg;
+			print_endline ("forwarded according to " ^ (string_of_fd fd) ^ "\n");
 			aux ps
 	in 
 	let rec to_packet' fvalues = 
