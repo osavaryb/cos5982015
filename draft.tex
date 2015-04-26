@@ -190,7 +190,40 @@ function InRange: pkt * field * value * value -> bool
 \section*{Implementation}
 %that's the hope...
 
-   \subsection*{Optimizations}
+\subsection*{A.P.I.}
+
+\subsection*{Tracing the Algorithmic Policy}
+From an algorithmic policy, we generate a decision tree  whose leaves are forwarding decision and whose node are either branching according the range of a field value, according to a relation ,or adding and removing components from a relation.
+
+\begin{lstlisting}
+  compile (f: packet -> forwarding_decision) : policy =
+      push most general packet to (empty) stack
+      set the current location to be the root of an empty decision tree
+      while (stack is not empty)
+         pop the top of the stack as pkt
+         run f of pkt resulting in a forwarding decision fd (and a modified packet pkt)
+         record the forwarding decision for the symbolic packet pkt at the current location in the decision tree
+         set the current location to be the root of the decision tree and repeat
+  
+\end{lstlisting}
+
+To do so, we repeatedly run the algorithmic policy \lstinline|f| on symbol packets generated to explore every reachable path.
+We begin by calling \lstinline|f| on a symbolic packet covering the full range of value for each of its fields.
+
+When \lstinline|f| calls \lstinline|in_range| to learn if the field \lstinline|fld|'s value is in the range \lstinline|r|, we (1) create an \lstinline|Inrange| branching node in the decision tree (2) refine the current symbolic packet to represent all packets in range \lstinline|r| that could reach this test in the algorithmic policy and return true (3) push on the stack of packets to process a symbolic packets representing all packets in the complement of \lstinline|r| for field \lstinline|fld|.
+
+Similarly, when the algorithmic policy calls \lstinline|in_relation| to learn if fields \lstinline|flds|'s value are in a relation \lstinline|rel|, we (1) create an \lstinline|Inrelation| branching node in the decision tree (2) tag the current packet as being in the relation, return true (3) push on the stack of packets to process the same packet tagged as not being part of relation \lstinline|rel|.
+
+When \lstinline|f| calls \lstinline|add| or \lstinline|remove|, we record in the decision the current symbolic packet, the relation and the fields being added or removed from the relation before continuing with the execution of \lstinline|f|.
+
+When \lstinline|f| returns with a forwarding decision, we record it, paired with the current symbolic packet, as a leaf node at the current position in the decision tree. We then pop the next packet from the stack of packets to process and restart tracing the policy from the root of the decision tree, exploring another path of \lstinline|f|.  
+
+
+\subsection*{Simulating the Network Controller}
+
+
+
+\subsection*{Optimizations}
    % 1) expand tree before add/remove nodes with a match on that relation ( based on add(p); add(p) == add(p) so can shortcircuit if p is already in the relation)
    % 2) Prune dead subtree on empty ranges and add/remove which do not affect any inhabitant-based branching.
 
