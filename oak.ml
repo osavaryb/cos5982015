@@ -37,7 +37,7 @@ type forwarding_decision =
 	| Ctrl
 
 type decision_tree =
-	| Dummy
+  | Dummy
     | Leaf of packet * forwarding_decision   
     | Add of packet * field list * relation * decision_tree ref 
     | Remove of packet * field list * relation * decision_tree ref 
@@ -273,10 +273,13 @@ let in_range (p: packet) (f: field) (r: range) : bool =
 
 
 (* Same as add but also creates alternative routes without add node *)
-let add' (p: packet) (fields: field list) (rel: relation) : unit =
-  let (pkt, rel_tru, rel_fal) = !p in 
+let rec add' (p: packet) (fields: field list) (rel: relation) : unit =
+  let (pkt, rel_tru, rel_fal) = !p in
+  let already_decided = (List.mem (rel, fields) rel_tru) || (List.mem(rel, fields) rel_fal) in
 	match !(!loc) with 
-	| Dummy -> 
+	| Dummy ->
+	    if already_decided then
+	      add p fields rel else
 	    let child = ref Dummy in
 	    p := (pkt, rel_tru, (rel, fields)::rel_fal);
 	    Stack.push (ref (pkt, (rel, fields)::rel_tru, rel_fal)) !next_pkts;
@@ -295,10 +298,8 @@ let add' (p: packet) (fields: field list) (rel: relation) : unit =
 			  | _ -> failwith "Error [add': add node expected after shadow-inrelation]")
 	      | false, _ -> loc := fal
 	      | _ -> failwith "Error [add': false and true]")
-	| _ -> failwith "Error [add': unhandled case]"
-	  
-	  
-let add (p: packet) (fields: field list) (rel: relation) : unit =
+	| _ -> failwith "Error [add': unhandled case]"	  
+and add (p: packet) (fields: field list) (rel: relation) : unit =
         if o1 then add' p fields rel else 
 	match !(!loc) with 
 	| Dummy -> 
@@ -314,10 +315,14 @@ let add (p: packet) (fields: field list) (rel: relation) : unit =
 
 	      
 
-let remove' (p: packet) (fields: field list) (rel: relation) : unit =
-  let (pkt, rel_tru, rel_fal) = !p in 
-	match !(!loc) with 
-	| Dummy -> 
+let rec remove' (p: packet) (fields: field list) (rel: relation) : unit =
+  let (pkt, rel_tru, rel_fal) = !p in
+  let already_decided = (List.mem (rel, fields) rel_tru) || (List.mem(rel, fields) rel_fal) in
+  match !(!loc) with 
+  | Dummy ->
+      if already_decided then
+	remove p fields rel
+      else
 	    let child = ref Dummy in
 	    p := (pkt, (rel, fields)::rel_tru, rel_fal);
 	    Stack.push (ref (pkt, rel_tru, (rel, fields)::rel_fal)) !next_pkts;
@@ -337,11 +342,8 @@ let remove' (p: packet) (fields: field list) (rel: relation) : unit =
 		   )
 	      | false, _ -> loc := fal
 	      | _ -> failwith "Error [remove': false and true]")
-	| _ -> failwith "Error [remove': unhandled case]"
-
-
-	      
-let remove (p: packet) (fields: field list) (rel: relation) : unit =
+	| _ -> failwith "Error [remove': unhandled case]"	      
+and remove (p: packet) (fields: field list) (rel: relation) : unit =
         if o1 then remove' p fields rel else
 	match !(!loc) with 
 	| Dummy -> 
@@ -358,7 +360,8 @@ let remove (p: packet) (fields: field list) (rel: relation) : unit =
 	      
 	      
 let in_relation (p: packet) (fields: field list) (rel: relation) : bool = 
-	let (pkt, rel_tru, rel_fal) = !p in 
+  let (pkt, rel_tru, rel_fal) = !p in
+      
 	match !(!loc) with 
 	| Dummy ->
 		Stack.push (ref (pkt, rel_tru, (rel, fields)::rel_fal)) !next_pkts;
