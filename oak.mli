@@ -32,3 +32,5 @@ val in_relation: packet -> field list -> relation -> bool
 val compile: (packet -> forwarding_decision) -> policy
 (* run the user-defined policy with a set of input packets *)
 val run: policy -> ((field * int) list) list  -> unit
+(* Print the policy to stdout *)
+val print_policy: policy -> unit

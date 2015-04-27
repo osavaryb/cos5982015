@@ -1,8 +1,7 @@
-(* TODO : verify when in_relation branching  that choice hasn't been made yet*)
-
   
 open Map
 open Stack
+
 
 let debug = false
 let o1 = true
@@ -129,6 +128,11 @@ let print_dtree (dt: decision_tree) : unit =
 	in 
 	aux dt 0
 
+	  
+let print_policy (pol:policy): unit =
+  print_dtree pol 
+	  
+	  
 let rec decisions (p: policy) : (packet*forwarding_decision) list = 
 	match p with 
 	| Dummy -> []
