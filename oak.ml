@@ -68,7 +68,10 @@ let string_of_field f =
 	| IpSrc -> "ipsrc"
 	| IpDst -> "ipdst"
 
-let string_of_interval (lo,hi) = 
+let string_of_interval (lo,hi) =
+  if lo = hi then
+    string_of_int lo
+  else
 	"[" ^ (string_of_int lo) ^ ", " ^ (string_of_int hi)^ "]"
 
 let string_of_range (r : range) = 
@@ -294,10 +297,14 @@ let rec add' (p: packet) (fields: field list) (rel: relation) : unit =
 	      (match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
 	      | true, _ ->
 			  (match (!fal) with
-			  | Add ( p', fields', rel', dt') -> loc := tru
+			  | Add ( p', fields', rel', dt') ->
+			      if fields' = fields && rel' = rel then 
+			        loc := tru
+			      else
+				failwith "Error [add': add node expected with same rel and fields after shadow-inrelation]"
 			  | _ -> failwith "Error [add': add node expected after shadow-inrelation]")
 	      | false, _ -> loc := fal
-	      | _ -> failwith "Error [add': false and true]")
+(* 	      | _ -> failwith "Error [add': false and true]" *) )
 	| _ -> failwith "Error [add': unhandled case]"	  
 and add (p: packet) (fields: field list) (rel: relation) : unit =
         if o1 then add' p fields rel else 
@@ -337,11 +344,15 @@ let rec remove' (p: packet) (fields: field list) (rel: relation) : unit =
 	      (match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
 	      | true, _ ->
 		  (match (!tru) with
-		  | Remove ( p', fields', rel', dt') -> loc := fal
+		  | Remove ( p', fields', rel', dt') ->
+		      if fields' = fields && rel' = rel then 
+			loc := fal
+		      else
+			failwith "Error [add': add node expected with same rel and fields after shadow-inrelation]"
 		  | _ -> failwith "Error [remove': add node expected after shadow-inrelation]"
 		   )
 	      | false, _ -> loc := fal
-	      | _ -> failwith "Error [remove': false and true]")
+(*	      | _ -> failwith "Error [remove': false and true]" *) )
 	| _ -> failwith "Error [remove': unhandled case]"	      
 and remove (p: packet) (fields: field list) (rel: relation) : unit =
         if o1 then remove' p fields rel else
@@ -375,7 +386,7 @@ let in_relation (p: packet) (fields: field list) (rel: relation) : bool =
 			(match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
 			 | true, _ -> loc := tru; true 
 			 | false, _ -> loc := fal; false 
-			 | _ -> failwith "Error [inrelation: false and true]")
+			(* | _ -> failwith "Error [inrelation: false and true]" *) )
 		else failwith "Error [inrelation: different values]"
 	| _ -> failwith "Error [inrelation: unhandled case]"
 
