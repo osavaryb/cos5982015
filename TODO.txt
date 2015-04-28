@@ -1,0 +1,12 @@
+- write the report
+
+- investigate policy combination (cross, seq, &c.)
+
+- write more example/unit test for report and debugging
+
+- In_relation should check if current assignment to field being in a relation is possible rather than seeing if the pair is already in the connection (i.e. refusing to go down the false branch for (ipdst, ipsrc) if (ipdst, ipsrc, ipsrc) is already in the tru_rel
+
+- optimization 2
+  unobservable add/remove due to
+ *  undoing the operation on all path without observing it
+ *  never observing this relation (or not possible to observe added fields due to disjoint values)

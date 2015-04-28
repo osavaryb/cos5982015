@@ -1,4 +1,4 @@
-  
+(* Note: In_relation should check if current assignment to field being in a relation is possible rather than seeing if the pair is already in the connection (i.e. refusing to go down the false branch for (ipdst, ipsrc) if (ipdst, ipsrc, ipsrc) is already in the tru_rel *)  
 open Map
 open Stack
 
