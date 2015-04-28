@@ -14,8 +14,8 @@ let firewall pkt =
 
 
 let main () = 
-	let policy = Oak.compile firewall in 
-	Oak.print_policy policy
+	Oak.compile firewall
+
 	    
 
 let _ = main ()

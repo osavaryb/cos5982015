@@ -181,7 +181,7 @@ let compile (f: packet -> forwarding_decision) : policy =
 		(!loc) := Leaf (cur_pkt, fd);
 		loc := root;
 		if debug then print_dtree !root else (); 
-	done; !root
+	done; 	print_endline (string_of_policy !root); !root
 
 let max_value = 1000
 let min_value = 0
@@ -506,7 +506,6 @@ let rec simulate (p:packet') (r:rules) (pol:policy) : rules * forwarding_decisio
 let run (pol: policy) (inputs: ((field*int) list) list) : unit = 
 	let srules = decisions pol in 
 	let rules = ref (build_rules srules) in
-	print_endline (string_of_policy pol);
 	let rec aux pkts =
 		match pkts with 
 		| [] -> ()

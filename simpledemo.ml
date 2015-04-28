@@ -9,8 +9,7 @@ let f_simple pkt =
 
 
 let main () = 
-	let policy = Oak.compile f_simple in 
-	Oak.print_policy policy
+	Oak.compile f_simple
 	    
 
 let _ = main ()
