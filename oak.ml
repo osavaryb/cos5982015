@@ -3,7 +3,7 @@ open Map
 open Stack
 
 
-let debug = false
+let debug = true
 let o1 = true
     
 type relation = string
@@ -286,7 +286,10 @@ let rec add' (p: packet) (fields: field list) (rel: relation) : unit =
 	match !(!loc) with 
 	| Dummy ->
 	    if already_decided then
-	      add p fields rel else
+	      let child = ref Dummy in 
+	      (!loc) := Add (p, fields, rel, child);
+	      loc := child
+	    else
 	    let child = ref Dummy in
 	    p := (pkt, rel_tru, (rel, fields)::rel_fal);
 	    Stack.push (ref (pkt, (rel, fields)::rel_tru, rel_fal)) !next_pkts;
@@ -311,6 +314,10 @@ let rec add' (p: packet) (fields: field list) (rel: relation) : unit =
 (* 	      | _ -> failwith "Error [add': false and true]" *) )
 	| _ -> failwith "Error [add': unhandled case]"	  
 and add (p: packet) (fields: field list) (rel: relation) : unit =
+  if debug then 
+    let field_str = "add fields (" ^(String.concat "," (List.map string_of_field fields))^ ") to relation"^rel in 
+    print_endline field_str
+  else ();
         if o1 then add' p fields rel else 
 	match !(!loc) with 
 	| Dummy -> 
@@ -332,7 +339,9 @@ let rec remove' (p: packet) (fields: field list) (rel: relation) : unit =
   match !(!loc) with 
   | Dummy ->
       if already_decided then
-	remove p fields rel
+	let child = ref Dummy in 
+	(!loc) := Remove (p, fields, rel, child);
+	loc := child
       else
 	    let child = ref Dummy in
 	    p := (pkt, (rel, fields)::rel_tru, rel_fal);
@@ -359,6 +368,10 @@ let rec remove' (p: packet) (fields: field list) (rel: relation) : unit =
 (*	      | _ -> failwith "Error [remove': false and true]" *) )
 	| _ -> failwith "Error [remove': unhandled case]"	      
 and remove (p: packet) (fields: field list) (rel: relation) : unit =
+  if debug then 
+      let field_str = "remove fields (" ^(String.concat "," (List.map string_of_field fields))^ ") to relation"^rel in 
+    print_endline field_str
+    else ();
         if o1 then remove' p fields rel else
 	match !(!loc) with 
 	| Dummy -> 
@@ -376,7 +389,6 @@ and remove (p: packet) (fields: field list) (rel: relation) : unit =
 	      
 let in_relation (p: packet) (fields: field list) (rel: relation) : bool = 
   let (pkt, rel_tru, rel_fal) = !p in
-      
 	match !(!loc) with 
 	| Dummy ->
 		Stack.push (ref (pkt, rel_tru, (rel, fields)::rel_fal)) !next_pkts;
