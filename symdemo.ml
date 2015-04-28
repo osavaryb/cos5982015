@@ -13,10 +13,10 @@ let firewall pkt =
 		else Drop)
 
 let firewall_test_packets = 
-	[ [(IpSrc,150); (IpDst, 10)] ; 
-	  [(IpSrc,10); (IpDst, 150)]; 
-	  [(IpSrc,150); (IpDst, 10)]; 
-	  [(IpSrc, 150); (IpDst, 9)] ]	    
+	[ [(IpSrc,150); (IpDst, 10)] ;  (* External host --> internal host *)
+	  [(IpSrc,10); (IpDst, 150)];   (* Internal host --> external host *)
+	  [(IpSrc,150); (IpDst, 10)];   (* Trusted external host --> internal host *)
+	  [(IpSrc, 150); (IpDst, 9)] ]	(* Untrusted external host --> internal host *)    
 	    
 
 let main () = 
