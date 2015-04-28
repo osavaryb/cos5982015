@@ -389,22 +389,38 @@ and remove (p: packet) (fields: field list) (rel: relation) : unit =
 	      
 let in_relation (p: packet) (fields: field list) (rel: relation) : bool = 
   let (pkt, rel_tru, rel_fal) = !p in
-	match !(!loc) with 
-	| Dummy ->
+  let already_true = (List.mem (rel, fields) rel_tru) in
+  let already_false = (List.mem (rel, fields) rel_fal) in
+  match !(!loc) with 
+  | Dummy ->
+      (match already_true, already_false with
+      | true, false -> true
+      | false, true -> false
+      | false, false ->
 		Stack.push (ref (pkt, rel_tru, (rel, fields)::rel_fal)) !next_pkts;
 		p := (pkt, (rel, fields)::rel_tru, rel_fal);
 		let ctru,cfal = ref Dummy, ref Dummy in 
 		(!loc) := Inrelation (rel, fields, ctru, cfal);
 		loc := ctru;
 		true
-	| Inrelation (rel', fields', tru, fal) ->
-		if fields' = fields && rel' = rel then 
-			(match List.mem rel (List.map fst rel_tru), List.mem rel (List.map fst rel_fal) with 
-			 | true, _ -> loc := tru; true 
-			 | false, _ -> loc := fal; false 
-			(* | _ -> failwith "Error [inrelation: false and true]" *) )
-		else failwith "Error [inrelation: different values]"
-	| _ -> failwith "Error [inrelation: unhandled case]"
+      | true, true -> failwith "Error [inrelation: different values]")
+  | Inrelation (rel', fields', tru, fal) ->  
+      ( match already_true, already_false with 
+      | true, _ ->
+	  if fields' = fields && rel' = rel then
+	    (loc := tru; true)
+	  else
+	    true
+      | false, _ ->
+	  if fields' = fields && rel' = rel then
+	    (loc := fal;  false)
+	  else
+	    false )
+  | _ ->
+      (match already_true, already_false with
+      | true, false -> true
+      | false, true -> false
+      | _ , _ -> failwith "Error [inrelation: unhandled case]")
 
 
 (******************************************************
