@@ -28,8 +28,8 @@ let firewall_test_packets =
 	    
 
 let main () = 
-	let policy = Oak.compile firewall in 
-	run policy firewall_test_packets 
+	Oak.compile firewall
+
 
 let _ = main ()
 
