@@ -3,7 +3,7 @@ open Map
 open Stack
 
 
-let debug = true
+let debug = false
 let o1 = true
     
 type relation = string

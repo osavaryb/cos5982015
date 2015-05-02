@@ -30,9 +30,9 @@ let f_cross (f_1) (f_2) pkt =
 
     
 
-let main () = 
+let main () =
   let pol = Oak.compile (f_cross f_simple1 f_simple2) in
-  print_policy pol
+   print_policy pol
 	    
 
 let _ = main ()
