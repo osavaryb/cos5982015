@@ -106,11 +106,11 @@ To address these, we modify the model in the following way:
 % Explains what algorithmic policies are, how maple was handling them and the difference with our model 
 Algorithmic policies were introduced by Maple as a model for SDN controllers. An algorithmic policy consist of a function from packet to forwarding decision. Under this model, the network forwards packets as if this function was executed on each packet when entering the network. 
 
-% Including an example policy, todo change 0 to 10 to actual IP
+
 Figure~\ref{fig:firewall-eg} displays a policy for a stateful firewall using our API. Sources from 0 to 10 are taken to be internal to the network. If a packet is sent from an internal host to an external host, the pair of internal and external host is added to a list of trusted connection. If a packet is received from an external host, we lookup the table to see if the connection is trusted, in which case we forward the packet to its destination, otherwise we drop it.
 
 
-\begin{figure}
+\begin{figure}[ht]
 \begin{lstlisting}
 f(pkt):
   if Oak.in_range(pkt, src, 0, 10) then
@@ -126,8 +126,9 @@ f(pkt):
        end
   end                
   \end{lstlisting}
-\label{fig:firewallcode}
+
 \caption{A Stateful Firewall}
+\label{fig:firewallcode}
 \end{figure}
 
 
@@ -145,9 +146,10 @@ f(pkt):
 
 
   \begin{figure}
-\label{fig:decisiontree}  
+
 \caption{Decision Tree for Stateful Firewall}     
-\end{figure}
+\label{fig:decisiontree}  
+  \end{figure}
    
    % Can represent constraints on the ranges admissible given a certain topology as a series of ``true'' branches at the root of the tree.
 
@@ -160,15 +162,6 @@ f(pkt):
    \subsection*{Built-in Relation with Automatic Invalidation}
    % Relation with add and remove tuple of fields from a relation (empty at the begining), Inhabitant-based Branching 
 
-   \begin{figure}
-     \begin{lstlisting}
-       
-function InRange: pkt * field * value * value -> bool
-
-\end{lstlisting}
-
-\caption{Signature of the relation portion of the API}
-\end{figure}
 
    
    % Computing which packets need to be sent to the controller (i.e. only the ones reaching an ``add'' or a ``remove'' node.
@@ -177,14 +170,14 @@ function InRange: pkt * field * value * value -> bool
 %that's the hope...
 
 \subsection*{A.P.I.}
-In our model, algorithmic policies interact with packets through A.P.I function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|API|. 
-
+In our model, algorithmic policies interact with packets through A.P.I function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|A.P.I.|. 
 \lstinline|field| enumerates the different fields of a packet. It can be extended to represent more fields of a packet's header. Associated with \lstinline|field| are \lstinline|range|s, possible values taken by a certain packet's field, within a given minimum value \lstinline|min_value| and maximum value \lstinline|max_value|. \lstinline|range| consists of list of integer pairs, representing a collection of intervals whose union correspond to the range of values of a packet. For simplicity, we consider integer fields here, but this could be extended, for example, to IP prefix, boolean flags, etc.
 
 \lstinline|forwarding_decision| enumerates the different forwarding decision which can be returned by an algorithmic policy. \lstinline|Deliver| forwards the packet to its destination, \lstinline|Drop| drops the packet, \lstinline|ForwardTo i| forwards the packet to a constant location \lstinline|i| and \lstinline|Multicast fd1 fd2| duplicates the packet and handles each according to \lstinline|fd1| and \lstinline|fd2| respectively.
 
+Algorithmic policy may base their forwarding decision on the result of calling the \lstinline|in_range pkt fld r|, which returns whether value of packet \lstinline|pkt| at field \lstinline|fld| is in the range \lstinline|r|.
 
-\begin{figure}
+\begin{figure}[ht]
   \begin{lstlisting}
 (* abstract packet type *)
 type packet
@@ -212,12 +205,18 @@ type forwarding_decision =
 (* in_range p f r returns true if the value of field f of packet p is in range r, and false otherwise *)
 val in_range: packet -> field -> range -> bool
 \end{lstlisting}
-\label{fig:range_api}
+
 \caption{Signature of the packet and range-branching portion of the API}
+\label{fig:range_api}
 \end{figure}
 
 
-\begin{figure}
+
+In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A.P.I.|, used to model stateful controller programs. A \lstinline|relation| represents a table in which each row contains a series of field values. It is referred to by a string. Policy writer may add a row to a relation \lstinline|rel| by calling the function \lstinline|add pkt flds rel|, which will populate the new row with the fields \lstinline|flds|' values of the current packet \lstinline|pkt|. Similarly, they may remove a row containing exactly the values of fields \lstinline|flds|' values of the current packet \lstinline|pkt| by calling \lstinline|remove pkt flds rel|. Finally, one may test if the values of fields \lstinline|flds| of current packet \lstinline|pkt| are in relation \lstinline|rel| by calling \lstinline|in_relation pkt flds rel|.
+
+
+
+\begin{figure}[ht]
   \begin{lstlisting}
 (* name of a relation *)
 type relation = string
@@ -231,11 +230,12 @@ val remove: packet -> field list -> relation -> unit
 (* test if a packet's fields are in a relation *)
 val in_relation: packet -> field list -> relation -> bool
 \end{lstlisting}
-\label{fig:rel_api}
+
 \caption{Signature of the relation portion of the API}
+\label{fig:rel_api}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[ht]
   \begin{lstlisting}
 (* compile a user-function into a policy *)
 val compile: (packet -> forwarding_decision) -> policy
@@ -246,14 +246,15 @@ val run: policy -> ((field * int) list) list  -> unit
 (* Print the policy to stdout *)
 val print_policy: policy -> unit
   \end{lstlisting}
-  \label{fig:build_api}
+
   \caption{Signature of the interactive portion of the API}
+  \label{fig:build_api}
 \end{figure}
 
 \subsection*{Tracing the Algorithmic Policy}
 From an algorithmic policy, we generate a decision tree  whose leaves are forwarding decision and whose node are either branching according the range of a field value, according to a relation ,or adding and removing components from a relation.
 
-\begin{figure}
+\begin{figure}[ht]
 \begin{lstlisting}
 let compile (f: packet -> forwarding_decision) : policy =
       push most general packet to (empty) stack
@@ -271,10 +272,20 @@ let compile (f: packet -> forwarding_decision) : policy =
 To do so, we repeatedly run the algorithmic policy \lstinline|f| on symbol packets generated to explore every reachable path.
 We begin by calling \lstinline|f| on a symbolic packet covering the full range of value for each of its fields.
 
-When \lstinline|f| calls \lstinline|in_range| to learn if the field \lstinline|fld|'s value is in the range \lstinline|r|, we (1) create an \lstinline|Inrange| branching node in the decision tree (2) refine the current symbolic packet to represent all packets in range \lstinline|r| that could reach this test in the algorithmic policy and return true (3) push on the stack of packets to process a symbolic packets representing all packets in the complement of \lstinline|r| for field \lstinline|fld|.
+When \lstinline|f| calls \lstinline|in_range| to learn if the field \lstinline|fld|'s value is in the range \lstinline|r|, we
+\begin{enumerate}
+\item  create an \lstinline|Inrange| branching node in the decision tree
+\item refine the current symbolic packet to represent all packets in range \lstinline|r| that could reach this test in the algorithmic policy and return true
+\item push on the stack of packets to process a symbolic packets representing all packets in the complement of \lstinline|r| for field \lstinline|fld|.
+\end{enumerate}
 
-Similarly, when the algorithmic policy calls \lstinline|in_relation| to learn if fields \lstinline|flds|'s value are in a relation \lstinline|rel|, we (1) create an \lstinline|Inrelation| branching node in the decision tree (2) tag the current packet as being in the relation, return true (3) push on the stack of packets to process the same packet tagged as not being part of relation \lstinline|rel|.
 
+Similarly, when the algorithmic policy calls \lstinline|in_relation| to learn if fields \lstinline|flds|'s value are in a relation \lstinline|rel|, we
+\begin{enumerate}
+  \item create an \lstinline|Inrelation| branching node in the decision tree
+  \item tag the current packet as being in the relation, return true
+  \item push on the stack of packets to process the same packet tagged as not being part of relation \lstinline|rel|.
+\end{enumerate}
 When \lstinline|f| calls \lstinline|add| or \lstinline|remove|, we record in the decision the current symbolic packet, the relation and the fields being added or removed from the relation before continuing with the execution of \lstinline|f|.
 
 When \lstinline|f| returns with a forwarding decision, we record it, paired with the current symbolic packet, as a leaf node at the current position in the decision tree. We then pop the next packet from the stack of packets to process and restart tracing the policy from the root of the decision tree, exploring another path of \lstinline|f|.  
@@ -282,7 +293,7 @@ When \lstinline|f| returns with a forwarding decision, we record it, paired with
 
 \subsection*{Simulating the Network Controller}
 
-\begin{figure}
+\begin{figure}[ht]
 \begin{lstlisting}
 let run (pol: policy) (inputs: ((field*int) list) list) : unit =
       build the symbolic rules for policy pol

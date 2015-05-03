@@ -4,6 +4,9 @@
 
 - write more example/unit test for report and debugging
 
+- remove should take in a list of option fields, matching every row for the Some fields with anything in the None projection.
+
+
 - In_relation should check if current assignment to field being in a relation is possible rather than seeing if the pair is already in the connection (i.e. refusing to go down the false branch for (ipdst, ipsrc) if (ipdst, ipsrc, ipsrc) is already in the tru_rel
 
   nevermind this doesn't make sense. We might want to check that all tuples have the same size for a given relation, though
