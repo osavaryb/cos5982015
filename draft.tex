@@ -1,4 +1,4 @@
-\documentclass[12pt]{article}
+\documentclass[11pt]{article}
 \usepackage[latin1]{inputenc}
 
 \usepackage{times}
@@ -177,14 +177,27 @@ function InRange: pkt * field * value * value -> bool
 %that's the hope...
 
 \subsection*{A.P.I.}
+In our model, algorithmic policies interact with packets through A.P.I function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|API|. 
+
+\lstinline|field| enumerates the different fields of a packet. It can be extended to represent more fields of a packet's header. Associated with \lstinline|field| are \lstinline|range|s, possible values taken by a certain packet's field, within a given minimum value \lstinline|min_value| and maximum value \lstinline|max_value|. \lstinline|range| consists of list of integer pairs, representing a collection of intervals whose union correspond to the range of values of a packet. For simplicity, we consider integer fields here, but this could be extended, for example, to IP prefix, boolean flags, etc.
+
+\lstinline|forwarding_decision| enumerates the different forwarding decision which can be returned by an algorithmic policy. \lstinline|Deliver| forwards the packet to its destination, \lstinline|Drop| drops the packet, \lstinline|ForwardTo i| forwards the packet to a constant location \lstinline|i| and \lstinline|Multicast fd1 fd2| duplicates the packet and handles each according to \lstinline|fd1| and \lstinline|fd2| respectively.
+
 
 \begin{figure}
   \begin{lstlisting}
+(* abstract packet type *)
+type packet
+
 (* a standard packet field *)
 type field = IpSrc | IpDst 
 
 (* range is a union of intervals *)
 type range = (int*int) list
+
+(* minimum, maximum value for a range interval *)
+val min_value: int 
+val max_value: int
 
 (* forwarding decision can deliver, drop, forward, multicast *)
 type forwarding_decision =
@@ -192,19 +205,14 @@ type forwarding_decision =
 	| Drop
 	| ForwardTo of int
 	| Multicast of forwarding_decision * forwarding_decision
-	| Ctrl
+	| Ctrl (* TODO: should not expose this *)
 
-(* abstract packet type *)
-type packet
 
-(* minimum, maximum value for a range interval *)
-val min_value: int 
-val max_value: int
 
 (* in_range p f r returns true if the value of field f of packet p is in range r, and false otherwise *)
 val in_range: packet -> field -> range -> bool
 \end{lstlisting}
-
+\label{fig:range_api}
 \caption{Signature of the packet and range-branching portion of the API}
 \end{figure}
 
@@ -223,7 +231,7 @@ val remove: packet -> field list -> relation -> unit
 (* test if a packet's fields are in a relation *)
 val in_relation: packet -> field list -> relation -> bool
 \end{lstlisting}
-
+\label{fig:rel_api}
 \caption{Signature of the relation portion of the API}
 \end{figure}
 
@@ -238,6 +246,7 @@ val run: policy -> ((field * int) list) list  -> unit
 (* Print the policy to stdout *)
 val print_policy: policy -> unit
   \end{lstlisting}
+  \label{fig:build_api}
   \caption{Signature of the interactive portion of the API}
 \end{figure}
 
