@@ -1,9 +1,9 @@
-\documentclass[11pt]{article}
-\usepackage[latin1]{inputenc}
 
+
+\documentclass[preprint]{sigplanconf}
+\usepackage[latin1]{inputenc}
 \usepackage{times}
 \usepackage{latexsym}
-\usepackage[bottom=20mm, top=20mm, left=20mm, right=20mm]{geometry}
 \usepackage{graphicx}
 \usepackage{enumitem}
 \usepackage{listings}
@@ -134,7 +134,7 @@ f(pkt):
 
 
 
-\section*{API and Decision Trees}
+\section*{Decision Trees and Algorithmic Policies}
    \subsection*{Range-based Branching}
    % Why range instead of actual value, pre-generation of rules using symbolic pre-execution
 
@@ -165,6 +165,10 @@ f(pkt):
 
    
    % Computing which packets need to be sent to the controller (i.e. only the ones reaching an ``add'' or a ``remove'' node.
+
+
+   \subsection*{Combining Algorithmic Policies}
+   % cross, ``holes''
    
 \section*{Implementation}
 %that's the hope...
@@ -270,6 +274,7 @@ let compile (f: packet -> forwarding_decision) : policy =
   
 \end{lstlisting}
 \caption{Pseudocode for the compile function}
+\label{fig:compile-pseudo}
 \end{figure}
 
 To do so, we repeatedly run the algorithmic policy \lstinline|f| on symbol packets generated to explore every reachable path.
@@ -296,6 +301,10 @@ When \lstinline|f| returns with a forwarding decision, we record it, paired with
 
 \subsection*{Simulating the Network Controller}
 
+We provide a function \lstinline|run| to simulate the controller policy on a sequence of packets. \lstinline|policy| is an abstract datatype solely returned by \lstinline|compile| (see Fig.~\ref{fig:compile-pseudo}). In addition to the policy, \lstinline|run| takes in a list of packets represented as list of pairs of \lstinline|field| and \lstinline|int|, representing the values of the different fields of the packet. We expect all fields to be set exactly once for each packet in the list.
+
+\lstinline|run| starts by building the symbolic rules for the given policy, and generating the concrete rules assuming all relations to be empty. In sequence, packet are matched with the current concrete rules, recording the forwarding decision. If a packet is sent to the controller, we evaluate the policy on the packet, potentially adding or removing tuples from relations. We then re-generate the concrete rules with the updated relation, before recording the forwarding decision.
+
 \begin{figure}[ht]
 \begin{lstlisting}
 let run (pol: policy) (inputs: ((field*int) list) list) : unit =
@@ -312,6 +321,7 @@ let run (pol: policy) (inputs: ((field*int) list) list) : unit =
 \end{lstlisting}
 
 \caption{Pseudocode for the run function}
+\label{fig:run-pseudo}
   \end{figure}
 
 
@@ -321,6 +331,7 @@ let run (pol: policy) (inputs: ((field*int) list) list) : unit =
    % 2) Prune dead subtree on empty ranges and add/remove which do not affect any inhabitant-based branching.
 
 
+% probably no evaluation :(
 \section*{Evaluation}
 % 1) optimality w.r.t. packets seen by the controler?
 % 2) more examples
