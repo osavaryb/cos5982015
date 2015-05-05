@@ -78,6 +78,9 @@ Princeton University}
 \begin{document}
 \maketitle
 
+\begin{abstract} ...
+\end{abstract}
+
 \section*{Introduction}
 
 Maple \cite{Maple} proposes a SDN controller model where the behavior of the controller is defined by a function from packets to forwarding path, the algorithmic policy. The authors then show how to optimize the controller so that packets are handled without having to run the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. We identify a number of shortcoming to this model:
@@ -110,14 +113,14 @@ Figure~\ref{fig:firewall-eg} displays a policy for a stateful firewall using our
 \begin{figure}[ht]
 \begin{lstlisting}
 f(pkt):
-  if Oak.in_range(pkt, src, 0, 10) then
-     if Oak.in_range pkt dst  [(0,10)] then
-        Oak.deliver
+  if in_range(pkt, src, 0, 10) then
+     if in_range pkt dst  [(0,10)] then
+        deliver
      else 
-        Oak.add pkt (Oak.IpDst, Oak.IpSrc) ``conn'';
-        Oak.deliver
-  else if Oak.in_rel pkt (Oak.IpSrc,Oak.IpDst) ``conn'' then
-         Oak.deliver
+        add pkt (IpDst, IpSrc) ``conn'';
+        deliver
+  else if in_rel pkt (IpSrc,IpDst) ``conn'' then
+         deliver
        else
          RO.drop
        end
