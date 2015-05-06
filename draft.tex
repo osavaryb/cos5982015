@@ -178,10 +178,7 @@ f(pkt):
 \begin{figure}[ht]
 \begin{lstlisting}
 
-  let filter_src_range
-  (f: packet -> forwarding_decision)
-  (r:range)
-  (pkt: packet) : forwarding_decision =
+let filter_src_range f r pkt =
  if in_range pkt IpSrc r then
     f pkt
  else

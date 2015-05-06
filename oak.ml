@@ -33,7 +33,7 @@ type forwarding_decision =
 	| Drop
 	| ForwardTo of int
 	| Multicast of forwarding_decision * forwarding_decision
-	| Ctrl
+(* 	| Ctrl*)
 
 type decision_tree =
   | Dummy
@@ -61,7 +61,12 @@ type policy = decision_tree
  *  Printing
  *
  ******************************************************)
+let string_of_option f n o : string  =
+  match o with
+  | None -> n
+  | Some u -> f u
 
+	
 let string_of_field f = 
 	match f with 
 	| IpSrc -> "ipsrc"
@@ -99,7 +104,6 @@ let rec string_of_fd (fd : forwarding_decision) =
   | Drop -> "Drop"
   | ForwardTo i -> "Forward to "^ (string_of_int i)
   | Multicast (fd1, fd2) -> "Multicasted: " ^  (string_of_fd fd1) ^ " and " ^ (string_of_fd fd2)
-  | Ctrl -> "Send to controller"
 
 let rec repeat_str (n:int) (s:string) = 
 	if n = 0 then ""
@@ -133,28 +137,28 @@ let print_policy (pol:policy): unit =
   print_dtree pol 
 	  
 	  
-let rec decisions (p: policy) : (packet*forwarding_decision) list = 
+let rec decisions (p: policy) : (packet*(forwarding_decision option)) list = 
 	match p with 
 	| Dummy -> []
-	| Leaf (pkt,fd) -> [(pkt,fd)]
+	| Leaf (pkt,fd) -> [(pkt, Some fd)]
 	| Inrange (_,_,tru,fal) -> (decisions !tru) @ (decisions !fal)
 	| Inrelation (_, _, tru, fal) -> (decisions !tru) @ (decisions !fal)
-	| Add (pkt, _, _, _) -> [(pkt, Ctrl)]
-	| Remove (pkt, _, _, _) -> [(pkt, Ctrl)]
+	| Add (pkt, _, _, _) -> [(pkt, None)]
+	| Remove (pkt, _, _, _) -> [(pkt, None)]
 
 let string_of_policy (p: policy) : string = 
 	let str = List.fold_left 
-		(fun acc (pkt,fd) -> acc ^ "\n" ^ (string_of_packet pkt) ^ " --> " ^ (string_of_fd fd)) 
+		(fun acc (pkt,fd) -> acc ^ "\n" ^ (string_of_packet pkt) ^ " --> " ^ (string_of_option (string_of_fd) "Sent to Controller" fd))
 		"" (decisions p) in 
 	str ^ "\n"
 	
 
-let rec string_of_rules (rs:(packet' * forwarding_decision) list) =
+let rec string_of_rules (rs:(packet' * forwarding_decision option) list) =
   match rs with
   | [] -> ""
   | (p, fd)::rs' ->
       let str = string_of_rules rs' in
-      " | "^(string_of_packet' p)^" ---> "^(string_of_fd fd)^"  \n"^str
+      " | "^(string_of_packet' p)^" ---> "^(string_of_option (string_of_fd) "Sent to Controller" fd)^"  \n"^str
 
 (******************************************************
  *
@@ -432,8 +436,8 @@ let in_relation (p: packet) (fields: field list) (rel: relation) : bool =
 
 module SM = Map.Make(String)	     
 
-type rule = packet' * forwarding_decision
-type sym_rule = packet * forwarding_decision
+type rule = packet' * (forwarding_decision option)
+type sym_rule = packet * (forwarding_decision option)
 type rules = rule list
 type sym_rules = sym_rule list
 
@@ -453,9 +457,9 @@ let matches (p: packet') (pattern: packet') : bool =
 	in
 	FM.fold aux pattern true
 
-let rec evaluate_rules (p: packet') (rules: rules) : forwarding_decision =
+let rec evaluate_rules (p: packet') (rules: rules) : forwarding_decision option =
 	match rules with 
-	| [] -> Ctrl
+	| [] -> None
 	| (p',fd)::rs -> 
 		if matches p p' then fd 
 		else evaluate_rules p rs
@@ -524,12 +528,12 @@ let rec build_rules (srs: sym_rules): rules =
 let rec simulate (p:packet') (r:rules) (pol:policy) : rules * forwarding_decision =
 	print_endline ("Packet: " ^ (string_of_packet' p));
 	match evaluate_rules p r with 
-	| Ctrl -> let fd = evaluate_pol p pol in
+	| None -> let fd = evaluate_pol p pol in
 	          let rules' = build_rules (decisions pol) in
 	          print_endline "Sent to controller";
 		  	  print_endline (string_of_rules rules');
 	          (rules', fd)
-	| fd -> print_endline "Matched at switch"; (r,fd)
+	| Some fd -> print_endline "Matched at switch"; (r,fd)
 
 let run (pol: policy) (inputs: ((field*int) list) list) : unit = 
 	let srules = decisions pol in 

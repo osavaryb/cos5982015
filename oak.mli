@@ -10,7 +10,6 @@ type forwarding_decision =
 	| Drop
 	| ForwardTo of int
 	| Multicast of forwarding_decision * forwarding_decision
-	| Ctrl
 (* abstract packet type *)
 type packet
 (* abstract policy type *)
