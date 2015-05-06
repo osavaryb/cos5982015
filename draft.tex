@@ -168,7 +168,7 @@ f(pkt):
 
    \subsection*{Forwarding Decision}
    % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to dst)
-   Under the big switch model, the forwarding decisions returned by algorithmic policies are destination-based rather than path-based. For example, the algorithmic policy may decide to deliver a packet, at which point this interpretation will be interpreted as forwarding a packet along a path terminating at the packet's destination. Packets may also be dropped, or forwarding to a static location. Our model also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller.
+   Under the big switch model, the forwarding decisions returned by algorithmic policies are destination-based rather than path-based. For example, the algorithmic policy may decide to deliver a packet, at which point this interpretation will be interpreted as forwarding a packet along a path terminating at the packet's destination. Packets may also be dropped, or forwarding to a static location. Our model also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller (not shown in Fig~\ref{fig:range_api}).
    
 
    \subsection*{Combining Algorithmic Policies}
@@ -234,9 +234,6 @@ type forwarding_decision =
 	| Drop
 	| ForwardTo of int
 	| Multicast of forwarding_decision * forwarding_decision
-	| Ctrl
-
-
 
 
 val in_range: packet -> field -> range -> bool
