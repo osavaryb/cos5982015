@@ -135,6 +135,7 @@ f(pkt):
 
 
 \section*{Decision Trees and Algorithmic Policies}
+
    \subsection*{Range-based Branching}
    % Why range instead of actual value, pre-generation of rules using symbolic pre-execution
 
@@ -153,22 +154,58 @@ f(pkt):
    
    % Can represent constraints on the ranges admissible given a certain topology as a series of ``true'' branches at the root of the tree.
 
-   
 
-   \subsection*{Forwarding Decision}
-   % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to dst)
 
-   
-   \subsection*{Built-in Relation with Automatic Invalidation}
+     \subsection*{Built-in Relation with Automatic Invalidation}
    % Relation with add and remove tuple of fields from a relation (empty at the begining), Inhabitant-based Branching 
 
 
    
    % Computing which packets need to be sent to the controller (i.e. only the ones reaching an ``add'' or a ``remove'' node.
 
+     
+  
+
+   \subsection*{Forwarding Decision}
+   % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to dst)
+   Under the big switch model, the forwarding decisions returned by algorithmic policies are destination-based rather than path-based. For example, the algorithmic policy may decide to deliver a packet, at which point this interpretation will be interpreted as forwarding a packet along a path terminating at the packet's destination. Packets may also be dropped, or forwarding to a static location. Our model also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller.
+   
 
    \subsection*{Combining Algorithmic Policies}
    % cross, ``holes''
+   As algorithmic policies under our model are functions of the host language, we inherit the latter's function space ability, allowing, amongst other things, for compositon of algorithmic policies and higher-order algorithmic policies.
+
+\begin{figure}[ht]
+\begin{lstlisting}
+
+let filter_src_range  (f: packet -> forwarding_decision) (r:range) (pkt: packet) : forwarding_decision =
+ if in_range pkt IpSrc r then
+    f pkt
+ else
+   Drop   
+\end{lstlisting}
+
+\caption{Example of a Partial Algorithmic Policy}
+\label{fig:ex-hole}
+\end{figure}
+
+   
+   For example, we include in Figure~\ref{fig:ex-hole} the source code for \lstinline|filter_src_range| a partial algorithmic policy which, given an algorithmic policy \lstinline|f| and a range \lstinline|r|, will forwards all packets whose source IP is within range \lstinline|r| and drop the packet otherwise. 
+
+
+   \begin{figure}[ht]
+\begin{lstlisting}
+let f_cross (f_1) (f_2) pkt =
+  let d_1 = f_1 pkt in
+  let d_2 = f_2 pkt in
+  Multicast (d_1,d_2)
+\end{lstlisting}
+
+\caption{Example of a Composition Operator}
+\label{fig:ex-cross}
+\end{figure}
+   
+Various composition operator may be built as host language function to combine multiple algorithmic policies into a single one. For example, \lstinline|f_cross|, included in Figure~\ref{fig:ex-cross}, runs algorithmic policy \lstinline|f_1| and \lstinline|f_2| on input packets and multicast them according to both forwarding decisions. 
    
 \section*{Implementation}
 %that's the hope...
