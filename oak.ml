@@ -39,7 +39,7 @@ type decision_tree =
   | Dummy
     | Leaf of packet * forwarding_decision   
     | Add of packet * field list * relation * decision_tree ref 
-    | Remove of packet * field list * relation * decision_tree ref 
+    | Remove of packet * (field option) list * relation * decision_tree ref 
     | Inrange of range * field * (decision_tree ref) * (decision_tree ref)
     | Inrelation of relation * field list * decision_tree ref * decision_tree ref
     (* 	| ForwardAccordingTo of relation * int list * field list * int *)
@@ -371,7 +371,7 @@ let rec remove' (p: packet) (fields: field list) (rel: relation) : unit =
 	      | false, _ -> loc := fal
 (*	      | _ -> failwith "Error [remove': false and true]" *) )
 	| _ -> failwith "Error [remove': unhandled case]"	      
-and remove (p: packet) (fields: field list) (rel: relation) : unit =
+and remove (p: packet) (fields: (field option) list) (rel: relation) : unit =
   if debug then 
       let field_str = "remove fields (" ^(String.concat "," (List.map string_of_field fields))^ ") to relation"^rel in 
     print_endline field_str

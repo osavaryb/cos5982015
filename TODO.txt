@@ -7,11 +7,8 @@ TODO
 - write more example/unit test for report and debugging
 
 - remove should take in a list of option fields, matching every row for the Some fields with anything in the None projection.
+  osb: may have to adapt/modify o1
 
-
-- In_relation should check if current assignment to field being in a relation is possible rather than seeing if the pair is already in the connection (i.e. refusing to go down the false branch for (ipdst, ipsrc) if (ipdst, ipsrc, ipsrc) is already in the tru_rel
-
-  nevermind this doesn't make sense. We might want to check that all tuples have the same size for a given relation, though
  
 
 
@@ -27,3 +24,8 @@ DONE!
 - should not expose Ctrl forwarding decision, maybe Leaves of decision tree as Option FD?
 
   osb:  I removed Ctrl from forwarding decision, because we don't want people to write controller program with Ctrl fd, only use them for add/remove nodes (simulate wouldn't loop, but forwarding the packet according to the decision would). Where we could return Ctrl, we now return forwarding_decision option where None is taking to be Ctrl. This doesn't change anything for the API since we get a pure forwarding decision from evaluating the policy in simulate.
+
+
+- In_relation should check if current assignment to field being in a relation is possible rather than seeing if the pair is already in the connection (i.e. refusing to go down the false branch for (ipdst, ipsrc) if (ipdst, ipsrc, ipsrc) is already in the tru_rel
+
+  osb: nevermind this doesn't make sense. We might want to check that all tuples have the same size for a given relation, though
