@@ -6,6 +6,8 @@
 
 - remove should take in a list of option fields, matching every row for the Some fields with anything in the None projection.
 
+- should not expose Ctrl forwarding decision, maybe Leaves of decision tree as Option FD?
+
 
 - In_relation should check if current assignment to field being in a relation is possible rather than seeing if the pair is already in the connection (i.e. refusing to go down the false branch for (ipdst, ipsrc) if (ipdst, ipsrc, ipsrc) is already in the tru_rel
 
