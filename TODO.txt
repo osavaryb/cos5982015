@@ -6,8 +6,9 @@ TODO
 
 - write more example/unit test for report and debugging
 
-- remove should take in a list of option fields, matching every row for the Some fields with anything in the None projection.
-  osb: may have to adapt/modify o1
+- remove should take in a list of option fields, matching every row for the Some fields with anything in the None projection
+  osb: same for in_relation?.
+
 
  
 
