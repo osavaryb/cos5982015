@@ -33,13 +33,13 @@ type forwarding_decision =
 	| Drop
 	| ForwardTo of int
 	| Multicast of forwarding_decision * forwarding_decision
-(* 	| Ctrl*)
+
 
 type decision_tree =
   | Dummy
     | Leaf of packet * forwarding_decision   
     | Add of packet * field list * relation * decision_tree ref 
-    | Remove of packet * (field option) list * relation * decision_tree ref 
+    | Remove of packet * field list * relation * decision_tree ref 
     | Inrange of range * field * (decision_tree ref) * (decision_tree ref)
     | Inrelation of relation * field list * decision_tree ref * decision_tree ref
     (* 	| ForwardAccordingTo of relation * int list * field list * int *)
@@ -61,7 +61,7 @@ type policy = decision_tree
  *  Printing
  *
  ******************************************************)
-let string_of_option f n o : string  =
+let map_default f n o  =
   match o with
   | None -> n
   | Some u -> f u
@@ -148,7 +148,7 @@ let rec decisions (p: policy) : (packet*(forwarding_decision option)) list =
 
 let string_of_policy (p: policy) : string = 
 	let str = List.fold_left 
-		(fun acc (pkt,fd) -> acc ^ "\n" ^ (string_of_packet pkt) ^ " --> " ^ (string_of_option (string_of_fd) "Sent to Controller" fd))
+		(fun acc (pkt,fd) -> acc ^ "\n" ^ (string_of_packet pkt) ^ " --> " ^ (map_default (string_of_fd) "Sent to Controller" fd))
 		"" (decisions p) in 
 	str ^ "\n"
 	
@@ -158,7 +158,7 @@ let rec string_of_rules (rs:(packet' * forwarding_decision option) list) =
   | [] -> ""
   | (p, fd)::rs' ->
       let str = string_of_rules rs' in
-      " | "^(string_of_packet' p)^" ---> "^(string_of_option (string_of_fd) "Sent to Controller" fd)^"  \n"^str
+      " | "^(string_of_packet' p)^" ---> "^(map_default (string_of_fd) "Sent to Controller" fd)^"  \n"^str
 
 (******************************************************
  *
@@ -371,7 +371,7 @@ let rec remove' (p: packet) (fields: field list) (rel: relation) : unit =
 	      | false, _ -> loc := fal
 (*	      | _ -> failwith "Error [remove': false and true]" *) )
 	| _ -> failwith "Error [remove': unhandled case]"	      
-and remove (p: packet) (fields: (field option) list) (rel: relation) : unit =
+and remove (p: packet) (fields: field list) (rel: relation) : unit =
   if debug then 
       let field_str = "remove fields (" ^(String.concat "," (List.map string_of_field fields))^ ") to relation"^rel in 
     print_endline field_str
