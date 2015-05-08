@@ -47,6 +47,9 @@
 %\sectionfont{\fontsize{12}{15}\selectfont}
 %\subsectionfont{\fontsize{11}{14}\selectfont}
 
+\lstset{morekeywords={in_range, in_rel, add, remove, Drop, Deliver, ForwardTo, Multicast, IpSrc, IpDst}}
+
+
 \usepackage{amsmath, amssymb}
 
 \pagestyle{fancy}
@@ -115,14 +118,14 @@ Figure~\ref{fig:firewall-eg} displays a policy for a stateful firewall using our
 f(pkt):
   if in_range(pkt, src, 0, 10) then
      if in_range pkt dst  [(0,10)] then
-        deliver
+        Deliver
      else 
         add pkt (IpDst, IpSrc) ``conn'';
-        deliver
+        Deliver
   else if in_rel pkt (IpSrc,IpDst) ``conn'' then
-         deliver
+         Deliver
        else
-         drop
+         Drop
        end
   end                
   \end{lstlisting}
@@ -274,7 +277,7 @@ val in_range: packet -> field -> range -> bool
 
 
 
-In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A.P.I.|, used to model stateful controller programs. A \lstinline|relation| represents a table in which each row contains a series of field values. It is referred to by a string. Policy writer may add a row to a relation \lstinline|rel| by calling the function \lstinline|add pkt flds rel|, which will populate the new row with the fields \lstinline|flds|' values of the current packet \lstinline|pkt|. Similarly, they may remove a row containing exactly the values of fields \lstinline|flds|' values of the current packet \lstinline|pkt| by calling \lstinline|remove pkt flds rel|. Finally, one may test if the values of fields \lstinline|flds| of current packet \lstinline|pkt| are in relation \lstinline|rel| by calling \lstinline|in_relation pkt flds rel|.
+In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A.P.I.|, used to model stateful controller programs. A \lstinline|relation| represents a table in which each row contains a series of field values. It is referred to by a string. Policy writer may add a row to a relation \lstinline|rel| by calling the function \lstinline|add pkt flds rel|, which will populate the new row with the fields \lstinline|flds|' values of the current packet \lstinline|pkt|. Similarly, they may remove a row containing exactly the values of fields \lstinline|flds|' values of the current packet \lstinline|pkt| by calling \lstinline|remove pkt flds rel|. Finally, one may test if the values of fields \lstinline|flds| of current packet \lstinline|pkt| are in relation \lstinline|rel| by calling \lstinline|in_rel pkt flds rel|.
 
 
 
@@ -282,11 +285,14 @@ In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A
   \begin{lstlisting}
 type relation = string
 
-val add: packet -> field list -> relation -> unit
+val add: packet -> field list -> relation
+    -> unit
 
-val remove: packet -> field list -> relation -> unit
+val remove: packet -> field list -> relation
+    -> unit
 
-val in_relation: packet -> field list -> relation -> bool
+val in_rel: packet -> field list -> relation
+    -> bool
 \end{lstlisting}
 
 \caption{Signature of the relation portion of the API}
@@ -298,13 +304,12 @@ val in_relation: packet -> field list -> relation -> bool
 
 \begin{figure}[ht]
   \begin{lstlisting}
-(* compile a user-function into a policy *)
-val compile: (packet -> forwarding_decision) -> policy
+val compile: (packet -> forwarding_decision)
+    -> policy
     
-(* run the user-defined policy with a set of input packets *)
-val run: policy -> ((field * int) list) list  -> unit
+val run: policy -> ((field * int) list) list
+    -> unit
     
-(* Print the policy to stdout *)
 val print_policy: policy -> unit
   \end{lstlisting}
 
