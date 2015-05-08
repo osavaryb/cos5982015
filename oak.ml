@@ -4,7 +4,7 @@ open Stack
 
 
 let debug = false
-let o1 = true
+let o1 = false
     
 type relation = string
 

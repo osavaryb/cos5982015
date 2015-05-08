@@ -122,7 +122,7 @@ f(pkt):
   else if in_rel pkt (IpSrc,IpDst) ``conn'' then
          deliver
        else
-         RO.drop
+         drop
        end
   end                
   \end{lstlisting}
@@ -131,26 +131,55 @@ f(pkt):
 \label{fig:firewallcode}
 \end{figure}
 
+From an algorithmic policy such as the one included in Fig~\ref{fig:firewall-eg}, we generate a decision tree summarizing the function's interaction with the packet and the relevant decision. The decision tree is then used by our runtime system to install switch rules and update them when necessary. For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
 
 
-
-\section*{Decision Trees and Algorithmic Policies}
-
-   \subsection*{Range-based Branching}
-   % Why range instead of actual value, pre-generation of rules using symbolic pre-execution
-
-
-   
-   
-
-  For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
-
-
-  \begin{figure}
+  \begin{figure}[ht]
 
 \caption{Decision Tree for Stateful Firewall}     
 \label{fig:decisiontree}  
   \end{figure}
+
+  This decision tree would in turn lead to the following symbolic rules:
+  \begin{lstlisting}
+ipsrc in [0, 100] --> Sent to Controller
+ipsrc in [101, 1000], (ipsrc,ipdst) in conn
+                  --> Deliver
+ipsrc in [101, 1000], (ipsrc,ipdst) not in conn
+                  --> Drop
+  \end{lstlisting}
+
+  At initialization, these concrete rules would be generated from the symbolic rules by having all relations be empty:
+\begin{lstlisting}
+ipsrc in [0, 100] ---> Sent to Controller  
+ipsrc in [101, 1000] ---> Drop  
+\end{lstlisting}
+  
+
+  When a packet is received, it is forwarded according to the first matching concrete rule installed on the switch. If the packet is sent to the controller, we evaluate the decision tree for that packet, potentially adding and removing tuples from relations, before forwarding the packet according to forwarding decision held in the relevant leaf of the decision tree. We then regenerate the concrete rules using the updated relation. For example, after having seen packet with \lstinline|ipsrc| 10 and \lstinline|ipdst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would updated as follow:
+
+\begin{lstlisting}
+ipsrc in [0, 100] ---> Sent to Controller  
+ipdst = 10, ipsrc = 150 ---> Deliver  
+ipsrc in [101, 1000] ---> Drop  
+\end{lstlisting}
+  
+  
+
+\section*{Algorithmic Policies and Decision Trees}
+In this section, we describe how an algorithmic policy may interact with a packet and with relations to generate a forwarding decision, and how we build a decision tree out of an algorithmic policy.
+
+   \subsection*{Range-based Branching}
+   
+
+   % Why range instead of actual value, pre-generation of rules using symbolic pre-execution
+   
+
+   
+   
+
+  
+
    
    % Can represent constraints on the ranges admissible given a certain topology as a series of ``true'' branches at the root of the tree.
 
