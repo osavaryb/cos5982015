@@ -280,7 +280,7 @@ type forwarding_decision =
 	| Drop
 	| ForwardTo of int
 	| Multicast of forwarding_decision
-                     l* forwarding_decision
+                      * forwarding_decision
 
 
 val in_range: packet -> field -> range -> bool
@@ -300,14 +300,11 @@ In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A
   \begin{lstlisting}
 type relation = string
 
-val add: packet -> field list -> relation
-    -> unit
+val add: packet -> field list -> relation -> unit
 
-val remove: packet -> field list -> relation
-    -> unit
+val remove: packet -> field list -> relation -> unit
 
-val in_rel: packet -> field list -> relation
-    -> bool
+val in_rel: packet -> field list -> relation-> bool
 \end{lstlisting}
 
 \caption{Signature of the relation portion of the API}
