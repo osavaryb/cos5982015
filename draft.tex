@@ -71,7 +71,7 @@ Princeton University}
 % for increasing space between paragraphs
 \newcommand{\emptyline}{\vspace{5pt}}
 
-\title{Red Oak: Something Something Algorithmic Policy}
+\title{Red Oak: Proactive Policy Generation}
  \authorinfo{Ryan Beckett}{Princeton University}{rbeckett@princeton.edu}
  \authorinfo{Olivier Savary B\'{e}langer}{Princeton University}{olivierb@princeton.edu}
 
@@ -86,21 +86,33 @@ Princeton University}
 
 \section*{Introduction}
 
-Maple \cite{Maple} proposes a SDN controller model where the behavior of the controller is defined by a function from packets to forwarding path, the algorithmic policy. The authors then show how to optimize the controller so that packets are handled without having to run the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. We identify a number of shortcoming to this model:
+One of the major outcomes of the Software Defined Networking (SDN) movement, has been that of a unified, open interface to the switch hardware. This has, in turn, enabled new opportunities for network programmability. The typical model for SDN is that of a centralized controller, or distributed set of controllers, programming the switches dynamically to implement the desired control functionality.
+However the questions remains as to how best to write programs for SDNs.
+
+Recent collaborations between researches in networking and programming languages have resulting in a number of new, network-specific programming languages. One example is the Frenetic family of languages \cite{Frenetic}, which allow programmers to write simple packet processing functions in a domain-specific language and combine them together using policy combinators. Another approach given in Maple \cite{Maple} is to allow programmers to write policies in an arbitrary, high-level programming language as a function that takes a packet and produces a forwarding path, the algorithmic policy. Conceptually, the function in run anew on each packet that enters the network.
+
+Ultimately, the performance requirements of networks dictate that the centralized controller(s) can not handle most traffic since redirecting packets to be handled by the controller incurs orders of magnitude increased latency. For this reason, compiler technologies for network programming languages must be able to push much of the control plane functionality into the data plane switches themselves. 
+
+For Maple, the authors show how to optimize the controller so that packets are handled without having to run the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. Unfortunately, there are a number of limitations to this approach:
+
+
 \begin{enumerate}
-\item When a field value is observe, the forwarding decision only works on packets with this exact value, even if the forwarding decision is made on a much coarser range of value.Similarly, after observing some value in the environment, the forwarding decision is specialize for that particular value
-  
-\item It no built-in environment datastructure with automatic invalidation of decision trace when the environment is modified, which is needed to implement dynamic controllers.
-  
-  \item Populating the decision tree requires seeing a high number of packets, potentially slowing down the network at start-up. 
+\item Since controller decisions are memoized, all initial packets must first go to the controller before it can learn how to forward similar packets directly in the data plane. This leads to a cold-startup phase with high packet latency.
+\item The controller only observes concrete packets. This can lead to installing overly specialized forwarding rules on the switches that miss some of the high-level intent of the programmer (e.g., matching all packets with a particular IP prefix).
+\item Most interesting network functions keep some global state (e.g., MAC learning table, ACLs). To ensure memoized decisions do not become invalid when the controller's environment (global state) changes, programmers must manually decide which previous decisions to invalidate.
 \end{enumerate}
 
 
-To address these, we modify the model in the following way:
+It no built-in environment datastructure with automatic invalidation of decision trace when the environment is modified, which is needed to implement dynamic controllers.
+
+
+In this work, we language-independent API and compilation strategy that, like Maple, allows programmers to write network programs with the full generality of a high-level, general-purpose programming language.
+However, we address the shortcomings in Maple in the following way:
+
 \begin{enumerate}
-  \item calls to our API does not expose the values of a packet's field, answering instead boolean queries about the values being in a certain range
-  \item dynamic controllers are supported through a relation data-structure which is updated through an extended API
-  \item the trace tree can be generated from executing the policy on a single (potentially symbolic) packet.
+\item We describe a static analysis on the user-defined forwarding policy to proactively generate forwarding rules to install in the network.
+\item We provide a packet API that lets programmers ask if a field is in a particular range (e.g., IP prefix) rather than if the the field equals a particular value. This more expressive test works together with our analysis to better capture programmer intent when setting up forwarding decision in the data plane.
+\item We provide a relation/table data structure in our API to maintain global state. The data structure works together with our analysis to provide an automatic invalidation scheme. The analysis determines which future packets might affect global state and ensures that these relevant packets are actually seen by the controller.
 \end{enumerate}
 
 
