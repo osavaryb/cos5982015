@@ -191,10 +191,12 @@ In this section, we describe how an algorithmic policy may interact with a packe
    
 
    % Why range instead of actual value, pre-generation of rules using symbolic pre-execution
+   Our API exports a single function for inspecting the contents of a packet's field, which is a test on the range of the packet's field. The ability to test if a value falls in a particular range is useful for capturing programmer intent with respect to things like IP prefix matching. Other tests on packet fields can be encoded in terms of ranges. For example, to test whether a field equals a particular value, one can simply test if it falls in the range with that value as both the lower and upper bound. Likewise, the programmer can test if a field is greater than or less than a particular value by testing if the field is in the range from the value to the maximum or minimum possible value for that field respectively. 
    
+Conveniently, ranges on packet fields also give us a way to describe symbolic packets - packets that represent a set of concrete packets. Later we will see how our static analysis will proactively generate rules to install on the switch hardware by propagating symbolic packet ranges through the control structure of the program.
 
    % Can represent constraints on the ranges admissible given a certain topology as a series of ``true'' branches at the root of the tree.
-im
+
 
      \subsection*{Built-in Relation with Automatic Invalidation}
    % Relation with add and remove tuple of fields from a relation (empty at the begining), Inhabitant-based Branching 
