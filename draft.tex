@@ -212,7 +212,9 @@ Conveniently, ranges on packet fields also give us a way to describe symbolic pa
 
    \subsection*{Forwarding Decision}
    % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to dst)
-   Under the big switch model, the forwarding decisions returned by algorithmic policies are destination-based rather than path-based. For example, the algorithmic policy may decide to deliver a packet, at which point this interpretation will be interpreted as forwarding a packet along a path terminating at the packet's destination. Packets may also be dropped, or forwarding to a static location. Our model also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller (not shown in Fig~\ref{fig:range_api}).
+	The programming model for Oak is that each packet entering the network is mapped to a forwarding decision that describes where the packet should end up leaving the network. For simplicity, we assume that we are targeting a one big switch implementation of the network. The one big switch model has been heavily optimized \cite{Obs}, and we view the problem of determining paths through the network as orthogonal to our work here. 
+  
+   We provide several types of forwarding decisions to the programmer. The programmer can deliver a packet, according to the packet's desination, drop a packet, and forwarding a packet to a static location. Our model also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller (not shown in Fig~\ref{fig:range_api}). Finally, the programmer can combine several forwarding decisions into one by using a mulitcast forwarding decision.
    
 
    \subsection*{Combining Algorithmic Policies}
