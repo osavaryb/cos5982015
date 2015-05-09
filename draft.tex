@@ -273,7 +273,8 @@ type forwarding_decision =
 	| Deliver
 	| Drop
 	| ForwardTo of int
-	| Multicast of forwarding_decision * forwarding_decision
+	| Multicast of forwarding_decision
+                     * forwarding_decision
 
 
 val in_range: packet -> field -> range -> bool
