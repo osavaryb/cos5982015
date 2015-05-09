@@ -364,6 +364,11 @@ Similarly, when the algorithmic policy calls \lstinline|in_relation| to learn if
 \end{enumerate}
 When \lstinline|f| calls \lstinline|add| or \lstinline|remove|, we record in the decision the current symbolic packet, the relation and the fields being added or removed from the relation before continuing with the execution of \lstinline|f|.
 
+
+% Prune dead subtree on empty ranges and add/remove which do not affect any inhabitant-based branching.
+
+
+
 When \lstinline|f| returns with a forwarding decision, we record it, paired with the current symbolic packet, as a leaf node at the current position in the decision tree. We then pop the next packet from the stack of packets to process and restart tracing the policy from the root of the decision tree, exploring another path of \lstinline|f|.  
 
 
@@ -426,7 +431,9 @@ ipsrc = 150, ipdst = 10 ---> Deliver
 ipsrc in [101, 1000] ---> Drop  
 \end{lstlisting}
 
-   % 2) Prune dead subtree on empty ranges and add/remove which do not affect any inhabitant-based branching.
+
+Other optimizations may further reduce the number of packet sent to the controller. For example, we could remove \lstinline|add| node which are followed by \lstinline|remove| node for the same relation and tuple on all path without the change being observed by an \lstinline|in_rel| node. Similarly, we could detect and warn the user if an added tuple may never be observed by an \lstinline|in_rel| node, for example by switching \lstinline|ipsrc| and \lstinline|ipdst| in the add tuple of the stateful firewall example (see Figure~\ref{fig:firewallcode}). We leave the implementation of these optimizations as future work.
+
 
 % probably no evaluation :(
 \section*{Evaluation}
