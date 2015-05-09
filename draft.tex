@@ -236,7 +236,7 @@ let filter_src_range f r pkt =
 \end{figure}
 
    
-   For example, we include in Figure~\ref{fig:ex-hole} the source code for \lstinline|filter_src_range| a partial algorithmic policy which, given an algorithmic policy \lstinline|f| and a range \lstinline|r|, will forwards all packets whose source IP is within range \lstinline|r| and drop the packet otherwise. 
+   For example, we include in Figure~\ref{fig:ex-hole} the source code for \lstinline|filter_src_range| a partial policy, which, given a policy \lstinline|f| and a range \lstinline|r|, will forwards all packets whose source IP is within range \lstinline|r| and drop the packet otherwise. The ability to compose two or more policies in sequence like this arises many times in practice. In our earlier firewall example, instead of delivering packets that were not dropped, we could instead have deferred to another function to decide how to handle trusted traffic.
 
 
    \begin{figure}[ht]
@@ -251,7 +251,7 @@ let f_cross (f_1) (f_2) pkt =
 \label{fig:ex-cross}
 \end{figure}
    
-Various composition operator may be built as host language function to combine multiple algorithmic policies into a single one. For example, \lstinline|f_cross|, included in Figure~\ref{fig:ex-cross}, runs algorithmic policy \lstinline|f_1| and \lstinline|f_2| on input packets and multicast them according to both forwarding decisions. 
+Various composition operator may be built as host language function to combine multiple algorithmic policies into a single one. For example, \lstinline|f_cross|, included in Figure~\ref{fig:ex-cross}, runs algorithmic policy \lstinline|f_1| and \lstinline|f_2| on input packets and multicasts them according to both forwarding decisions. This corresponds to the parallel composition operator for the Frenetic language \cite{Frenetic}, however here the composition takes place in a fully general purpose language.
    
 \section*{Implementation}
 %that's the hope...
