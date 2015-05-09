@@ -200,7 +200,9 @@ Conveniently, ranges on packet fields also give us a way to describe symbolic pa
 
      \subsection*{Built-in Relation with Automatic Invalidation}
    % Relation with add and remove tuple of fields from a relation (empty at the begining), Inhabitant-based Branching 
-
+	Many network applications of interest need to keep around some global state to keep track of things that have happened in the network. A stateful firewall, like the one we introduced earlier, needs to maintain an ACL of external hosts that are trusted to communicate with internal hosts. This list can change over time as packets traverse the network. Likewise, a MAC learning application would need to remember where to send packets destined for particular Ethernet destinations. However, reasoning about which packets the controller needs to see, and how to set up forwarding rules in the data plane to ensure that these packets are actually seen by the controller is challenging for programmers.
+	
+	We introduce a simple table (relation) data structure that handles updating mutable, global state in the controller automatically. Intuitively, each time a table can be updated, the controller must witness the update. Our range-based analysis determines all possible packets that could reach code resulting in an update to the table and instruments the data plane with forwarding rules to send relevant traffic to the controller.
 
    
    % Computing which packets need to be sent to the controller (i.e. only the ones reaching an ``add'' or a ``remove'' node.
