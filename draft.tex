@@ -103,14 +103,11 @@ For Maple, the authors show how to optimize the controller so that packets are h
 \end{enumerate}
 
 
-It no built-in environment datastructure with automatic invalidation of decision trace when the environment is modified, which is needed to implement dynamic controllers.
-
-
 In this work, we language-independent API and compilation strategy that, like Maple, allows programmers to write network programs with the full generality of a high-level, general-purpose programming language.
-However, we address the shortcomings in Maple in the following way:
+However, we address each of the shortcomings in Maple listed above. Our contributions are the following:
 
 \begin{enumerate}
-\item We describe a static analysis on the user-defined forwarding policy to proactively generate forwarding rules to install in the network.
+\item We describe a static analysis on the user-defined forwarding policy that pushes symbolic packets through the function to explore all possible paths of execution. This analysis is then used to proactively generate forwarding rules to install in the network.
 \item We provide a packet API that lets programmers ask if a field is in a particular range (e.g., IP prefix) rather than if the the field equals a particular value. This more expressive test works together with our analysis to better capture programmer intent when setting up forwarding decision in the data plane.
 \item We provide a relation/table data structure in our API to maintain global state. The data structure works together with our analysis to provide an automatic invalidation scheme. The analysis determines which future packets might affect global state and ensures that these relevant packets are actually seen by the controller.
 \end{enumerate}
@@ -119,10 +116,14 @@ However, we address the shortcomings in Maple in the following way:
 
 \section*{Algorithic Policies Revisited}
 % Explains what algorithmic policies are, how maple was handling them and the difference with our model 
-Algorithmic policies were introduced by Maple as a model for SDN controllers. An algorithmic policy consist of a function from packet to forwarding decision. Under this model, the network forwards packets as if this function was executed on each packet when entering the network. 
+Algorithmic policies were introduced by Maple as a model for SDN controllers. An algorithmic policy is a programmer-defined function from a packet to a forwarding decision (i.e., where the packet(s) should end up). Conceptually this model offers the abstraction that the network forwards packets as if this function were executed on each packet when entering the network. To handle future traffic directly in the data plane, Maple keeps a tree data structure that branches on decisions observed at run time (e.g., the packet had source IP 10.0.0.1)
 
 
-Figure~\ref{fig:firewall-eg} displays a policy for a stateful firewall using our API. Sources from 0 to 10 are taken to be internal to the network. If a packet is sent from an internal host to an external host, the pair of internal and external host is added to a list of trusted connection. If a packet is received from an external host, we lookup the table to see if the connection is trusted, in which case we forward the packet to its destination, otherwise we drop it.
+Figure~\ref{fig:firewall-eg} displays a policy for a simple stateful firewall using our API. For simplicity, we assume that IP ranges are between 0 and 1000, however it is easy to generalize this to actual IP prefixes.
+In the example, source IPs from 0 to 10 are considered to be internal to the network and everything else, external. 
+
+If a packet is sent from an internal host to an external host, the pair of internal and external host is added to a list of trusted connection. If a packet is received from an external host, we lookup in the table to see if the connection is trusted, in which case we forward the packet to its destination, otherwise we drop it. The forwarding decision "Deliver" is just shorthand for "forward the packet according to its intended destination".
+An interesting point to be made about this function is that we are actively manipulating global policy state when we add entries to the stateful firewall's trusted connection relation.
 
 
 \begin{figure}[ht]
@@ -146,7 +147,7 @@ f(pkt):
 \label{fig:firewallcode}
 \end{figure}
 
-From an algorithmic policy such as the one included in Fig~\ref{fig:firewall-eg}, we generate a decision tree summarizing the function's interaction with the packet and the relevant decision. The decision tree is then used by our runtime system to install switch rules and update them when necessary. For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
+From an algorithmic policy such as the one included in Fig~\ref{fig:firewall-eg}, we generate a decision tree summarizing the function's interaction with the packet and the relevant decisions that will be made for particular classes of packets. The decision tree is created by analyzing the programmers function statically and then used by our runtime system to install switch rules and update them only when necessary (i.e., in response to changes in global state). For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
 
 
   \begin{figure}[ht]
@@ -155,7 +156,7 @@ From an algorithmic policy such as the one included in Fig~\ref{fig:firewall-eg}
 \label{fig:decisiontree}  
   \end{figure}
 
-  This decision tree would in turn lead to the following symbolic rules:
+This decision tree would, in turn, lead to the following set of prioritized symbolic rules. We call these symbolic rules because they represent constraints on the actual concrete rules. The concrete rules our system will install in the network depend on the current contents of the trusted connection relation. In particular, for each IP source that is trusted to communicate with an internal destination in the "conn" relation, we will get a concrete rule permitting this communication.
   \begin{lstlisting}
 ipsrc in [0, 100] --> Sent to Controller
 ipsrc in [101, 1000], (ipsrc,ipdst) in conn
@@ -164,18 +165,20 @@ ipsrc in [101, 1000], (ipsrc,ipdst) not in conn
                   --> Drop
   \end{lstlisting}
 
-  At initialization, these concrete rules would be generated from the symbolic rules by having all relations be empty:
+After initialization (starting with no trusted connections), the concrete rules would be generated from the symbolic rules by having all relations be empty:
 \begin{lstlisting}
 ipsrc in [0, 100] ---> Sent to Controller  
 ipsrc in [101, 1000] ---> Drop  
 \end{lstlisting}
   
 
-  When a packet is received, it is forwarded according to the first matching concrete rule installed on the switch. If the packet is sent to the controller, we evaluate the decision tree for that packet, potentially adding and removing tuples from relations, before forwarding the packet according to forwarding decision held in the relevant leaf of the decision tree. We then regenerate the concrete rules using the updated relation. For example, after having seen packet with \lstinline|ipsrc| 10 and \lstinline|ipdst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would updated as follow:
+  When a packet is received, it is forwarded according to the first matching concrete rule installed on the switch. If the packet is sent to the controller, we evaluate the decision tree for that packet, potentially adding and removing tuples from relations, before forwarding the packet according to forwarding decision held in the relevant leaf of the decision tree. We then regenerate the concrete rules using the updated relation. 
+  
+ For example, after having seen packet with \lstinline|ipsrc| 10 and \lstinline|ipdst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would updated as follow:
 
 \begin{lstlisting}
 ipsrc in [0, 100] ---> Sent to Controller  
-ipdst = 10, ipsrc = 150 ---> Deliver  
+ipsrc = 150, ipdst = 10 ---> Deliver  
 ipsrc in [101, 1000] ---> Drop  
 \end{lstlisting}
   
