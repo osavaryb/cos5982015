@@ -147,7 +147,7 @@ f(pkt):
 \label{fig:firewallcode}
 \end{figure}
 
-From an algorithmic policy such as the one included in Fig~\ref{fig:firewall-eg}, we generate a decision tree summarizing the function's interaction with the packet and the relevant decisions that will be made for particular classes of packets. The decision tree is created by analyzing the programmers function statically and then used by our runtime system to install switch rules and update them only when necessary (i.e., in response to changes in global state). For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
+From an algorithmic policy such as the one included in Fig~\ref{fig:firewallcode}, we generate a decision tree summarizing the function's interaction with the packet and the relevant decisions that will be made for particular classes of packets. The decision tree is created by analyzing the programmers function statically and then used by our runtime system to install switch rules and update them only when necessary (i.e., in response to changes in global state). For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
 
 
 \begin{figure}[ht]
@@ -174,7 +174,8 @@ ipsrc in [101, 1000] ---> Drop
 
   When a packet is received, it is forwarded according to the first matching concrete rule installed on the switch. If the packet is sent to the controller, we evaluate the decision tree for that packet, potentially adding and removing tuples from relations, before forwarding the packet according to forwarding decision held in the relevant leaf of the decision tree. We then regenerate the concrete rules using the updated relation. 
   
- For example, after having seen a packet with \lstinline|ipsrc| 10 and \lstinline|ipdst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would updated as follow:
+  For example, a packing coming from \lstinline|ipsrc| 150 and \lstinline|ipdst| 10 would be matched by the second rule, and dropped on the switch.
+Subsequently, on a packet with \lstinline|ipsrc| 10 and \lstinline|ipdst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would updated as follow:
 
 \begin{lstlisting}
 ipsrc in [0, 100] ---> Sent to Controller  
@@ -182,7 +183,7 @@ ipsrc = 150, ipdst = 10 ---> Deliver
 ipsrc in [101, 1000] ---> Drop  
 \end{lstlisting}
   
-  
+In this example, packet traveling from \lstinline|150| to \lstinline|10| would be matched by the second rule on the switch and delivered, while packets from \lstinline|150| to other internal hosts or from other external host to any internal hosts would be dropped.
 
 \section*{Algorithmic Policies and Decision Trees}
 In this section, we describe how an algorithmic policy may interact with a packet and with relations to generate a forwarding decision, and how we build a decision tree out of an algorithmic policy.
