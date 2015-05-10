@@ -378,6 +378,45 @@ When \lstinline|f| calls \lstinline|add| or \lstinline|remove|, we record in the
 
 When \lstinline|f| returns with a forwarding decision, we record it, paired with the current symbolic packet, as a leaf node at the current position in the decision tree. We then pop the next packet from the stack of packets to process and restart tracing the policy from the root of the decision tree, exploring another path of \lstinline|f|.  
 
+\subsection*{Generating the Symbolic and Concrete Rules}
+
+When \lstinline|compile| terminates, a complete decision tree has been traced for the input algoritmic policy. The next step is generate symbolic rules, mapping a symbolic packet to a forwarding decision.
+To do so, we do a depth-first, left to right traversal of the tree. On reaching an \lstinline|Add| or a \lstinline|Remove| node, we create a new rule sending the relevant packets to the controller, pruning the rest of the sub-tree. On reaching a leaf, we create a new rule forwarding relevant packets according to the forwarding decision held in the leaf node.
+
+We then generate concrete rules from a collection of relations and a list of symbolic rules. Concrete rules differ from symbolic rule in that they do not depend on relations. Each symbolic rule expands into a list of concrete rules. For each of the tuple in the relation on which the rule depend, we create a new rule, refining the ranges of the relevant fields of the symbolic packet with the values of the tuple. We repeat this operation on the created list of symbolic rules until all dependant relations are taken care off, at which point the rules are considered concrete. Due to the left-to-right order of collection, we do not need to modify symbolic rules marked as not in a certain relation, as all the packets in the relation will have been matched by the positive rule before reaching this one.
+
+For example, taking the following symbolic rules: 
+  \begin{lstlisting}
+ipsrc in [101, 1000], (ipsrc,ipdst) in conn
+                  --> Deliver
+ipsrc in [101, 1000], (ipsrc,ipdst) not in conn
+                  --> Drop
+  \end{lstlisting}
+  and the relation ``conn'' as \lstinline| {(150,10), (200, 9), (8, 150)}|, we start by expanding the first rule to:
+\begin{lstlisting}[mathescape]
+ipsrc in ([101, 1000] $\cap$ 150), ipdst = 10
+    --> Deliver
+ipsrc in ([101, 1000] $\cap$ 200), ipdst = 9
+    --> Deliver
+ipsrc in ([101, 1000] $\cap$ 8), ipdst = 150
+    --> Deliver
+ \end{lstlisting}
+which reduces to:
+\begin{lstlisting}
+ipsrc = 150, ipdst = 10
+    --> Deliver
+ipsrc = 200, ipdst = 9
+    --> Deliver
+ \end{lstlisting}
+Note the omission of the third concrete rule, resulting from \lstinline|ipsrc| having an empty range. The second symbolic rule is then taken directly as concrete rule, with the packet in the relation having been matched by the previously generated concrete rule, resulting in:
+\begin{lstlisting}
+ipsrc = 150, ipdst = 10
+    --> Deliver
+ipsrc = 200, ipdst = 9
+    --> Deliver  
+ipsrc in [101, 1000]
+    --> Drop
+\end{lstlisting}
 
 \subsection*{Simulating the Network Controller}
 
