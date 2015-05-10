@@ -342,8 +342,8 @@ let compile (f: packet -> forwarding_decision) : policy =
       set the current location to be the root of an empty decision tree
       while (stack is not empty)
          pop the top of the stack as pkt
-         run f of pkt resulting in a forwarding decision fd (and a modified packet pkt)
-         record the forwarding decision for the symbolic packet pkt at the current location in the decision tree
+         run f of pkt resulting in a forwarding decision fd and a refined packet pkt
+         record the forwarding decision for the symbolic packet pkt in the decision tree
          set the current location to be the root of the decision tree and repeat
   
 \end{lstlisting}
@@ -390,11 +390,11 @@ let run (pol: policy) (inputs: ((field*int) list) list) : unit =
       build the symbolic rules for policy pol
       generate the concrete rules with all relations empty
       for each packets in input,
-          find the first of the current rule matching the packet, and record the forwarding decision fd
+          find the first rule matching the packet, and record the forwarding decision fd
           if packet is sent to the controller then
-              evaluate the policy on the packet, potentially adding or removing tuples from relations, record forwarding decision fd'
+              evaluate the policy on the packet, potentially updating relations
               regenerate concrete rules
-              forward the packet according the forwarding decision fd'
+              forward the packet according the evaluated forwarding decision
           else
               forward the packet according to fd 
 \end{lstlisting}
@@ -442,7 +442,7 @@ Other optimizations may further reduce the number of packet sent to the controll
 
 
 % probably no evaluation :(
-\section*{Evaluation}
+% \section*{Evaluation}
 % 1) optimality w.r.t. packets seen by the controler?
 % 2) more examples
 % 3) simulated run
