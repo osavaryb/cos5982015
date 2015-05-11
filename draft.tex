@@ -84,8 +84,25 @@ Princeton University}
 
 
 \begin{abstract}
-Software Defined Networking is a new paradigm that gives programmers 
-centralized visibility of control over the network.
+Software Defined Networking (SDN) is a new paradigm that gives programmers 
+centralized visibility and control over the network. However, due to performance 
+demands, writing correct and efficient programs is challenging. Programmers must 
+reason about how to correctly forward packets in the network, how to maintain
+global network state, which packets to observe at the centralized controller, 
+and how to minimize latency by pushing as much decision logic
+as possible onto the high-performance switch elements.
+
+We introduce a high-level SDN library that can be embedded into existing languages.
+Our library exposes an API that allows programmers to directly express behavioral intent, 
+while leaving the performance details to the library's optimization algorithms.
+Our library supports basic tests on packet fields as well as a simple mutable table
+data structure for storing global network information (e.g., firewall ACL, MAC learning table).
+Finally, to ensure adequate performance, 
+we statically analyze the programmer's policy by pushing symbolic packets through the policy 
+and observing the resulting packet forwarding decision.
+
+
+
 \end{abstract}
 
 
