@@ -1,4 +1,5 @@
 
+
 \documentclass[preprint]{sigplanconf}
 \usepackage[latin1]{inputenc}
 \usepackage{times}
@@ -91,7 +92,7 @@ global network state, which packets to observe at the centralized controller,
 and how to minimize latency by pushing as much decision logic
 as possible onto the high-performance switch elements.
 
-We developed a high-level SDN library that can be embedded into existing languages.
+We introduce a high-level SDN library that can be embedded into existing general-purpose languages.
 Our library exposes an API that allows programmers to directly express behavioral intent, 
 while leaving the performance details to the library's optimization algorithms.
 Our library supports basic tests on packet fields as well as a simple mutable table
@@ -105,28 +106,28 @@ and observing the resulting packet forwarding decision.
 \section*{Introduction}
 
 One of the major outcomes of the Software Defined Networking (SDN) movement has been a unified, open interface to the switch hardware. This has, in turn, enabled new opportunities for network programmability. The typical model for SDN involves a centralized controller or distributed set of controllers programming switches dynamically to implement the desired control functionality.
-However, the question remains as to how best to write programs for SDNs.
+However, the question remains as how best to write programs for SDNs.
 
 Recent collaborations between researchers in networking and programming languages have resulting in a number of new network-specific programming languages. One example is the Frenetic family of languages \cite{Frenetic}, which allow programmers to write simple packet processing functions in a domain-specific language and combine them together using policy combinators. Another approach, described in Maple \cite{Maple}, is to allow programmers to write policies in an arbitrary, high-level programming language as a function that takes a packet and produces a forwarding path, the algorithmic policy. Conceptually, the function is run anew on each packet that enters the network.
 
-Ultimately, the performance requirements of networks dictate that the centralized controller(s) should not handle most traffic since redirecting packets to be handled by the controller incurs orders of magnitude increased latency compared to those being handled by switches. For this reason, compiler technologies for network programming languages must be able to push much of the control plane functionality into the data plane switches themselves. 
+Ultimately, the performance requirements of networks dictate that the centralized controller(s) can not handle most traffic since redirecting packets to be handled by the controller incurs orders of magnitude increased latency compared to those being handled by switches. For this reason, compiler technologies for network programming languages must be able to push much of the control plane functionality into the data plane switches themselves. 
 
-In Maple \cite{Maple}, the authors show how to optimize the controller to reduce the number of packets are handled by running the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. Unfortunately, there are a number of limitations to this approach:
+For Maple, the authors show how to optimize the controller so that packets are handled without having to run the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. Unfortunately, there are a number of limitations to this approach:
 
 
 \begin{enumerate}
-\item Since controller decisions are memoized at runtime, all packets must initially go to the controller before it can learn how to forward similar packets directly in the data plane. This leads to a cold-startup phase with high packet latency.
+\item Since controller decisions are memoized, all initial packets must first go to the controller before it can learn how to forward similar packets directly in the data plane. This leads to a cold-startup phase with high packet latency.
 \item The controller only observes concrete packets. This can lead to installing overly specialized forwarding rules on the switches that miss some of the high-level intent of the programmer (e.g., matching all packets with a particular IP prefix).
 \item Most interesting network functions keep some global state (e.g., MAC learning table, ACLs). To ensure memoized decisions do not become invalid when the controller's environment (global state) changes, programmers must manually decide which previous decisions to invalidate.
 \end{enumerate}
 
 
-In this work, we devised a language-independent API together with a compilation strategy that, like Maple, allows programmers to write network programs with the full generality of a high-level, general-purpose programming language.
-However, we address each of the shortcomings  listed above. Our contributions are the following:
+In this work, we develop a language-independent API and compilation strategy that, like Maple, allows programmers to write network programs with the full generality of a high-level, general-purpose programming language.
+However, we address each of the shortcomings in Maple listed above. Our contributions are the following:
 
 \begin{enumerate}
-\item We describe a static analysis on the user-defined forwarding policy that explore all possible paths of execution by evaluating the function on symbolic packets. This analysis is then used to proactively generate a network controller and initial forwarding rules to install in the network.
-\item We provide a packet API that lets programmers ask if a field is in a particular range (e.g. an IP prefix) rather than if the field equals a particular value. This more expressive test works together with our analysis to better capture programmer intent when setting up forwarding decision in the data plane.
+\item We describe a static analysis on the user-defined forwarding policy that pushes symbolic packets through the function to explore all possible paths of execution. This analysis is then used to proactively generate forwarding rules to install in the network.
+\item We provide a packet API that lets programmers ask if a field is in a particular range (e.g., IP prefix) rather than if the field equals a particular value. This more expressive test works together with our analysis to better capture programmer intent when setting up forwarding decisions in the data plane.
 \item We provide a mutable relation data structure in our API to maintain global state. The data structure works together with our analysis to provide an automatic invalidation scheme. The analysis determines which future packets might affect global state and ensures that these relevant packets are actually seen by the controller.
 \end{enumerate}
 
@@ -134,13 +135,13 @@ However, we address each of the shortcomings  listed above. Our contributions ar
 
 \section*{Algorithic Policies Revisited}
 % Explains what algorithmic policies are, how maple was handling them and the difference with our model 
-Algorithmic policies were introduced by Maple as a model for SDN controllers. An algorithmic policy is a programmer-defined function from a packet to a forwarding decision (i.e., where the packet(s) should end up). Conceptually this model offers the abstraction that the network forwards packets as if this function were executed on each packet when entering the network. To handle future traffic directly in the data plane, Maple keeps a tree data structure that branches on decisions observed at run time (e.g., the packet had source IP 10.0.0.1)
+Algorithmic policies were introduced by Maple as a model for SDN controllers. An algorithmic policy is a programmer-defined function from a packet to a forwarding decision (i.e., where the packet(s) should end up). Conceptually this model offers the abstraction that the network forwards packets as if this function were executed on each packet when entering the network. To handle future traffic directly in the data plane, Maple keeps a tree data structure that branches on decisions observed at run time (e.g., the packet had source IP 10.0.0.1). We extend the idea of decision tree to work at a higher level of abstraction involving decisions based on symbolic constraints, rather than concrete, packets. Let us take a look at an example.
 
 
-A policy for a simple stateful firewall using our API is included in Figure~\ref{fig:firewallcode}. For simplicity, we assume that IP ranges are between 0 and 1000, however it is easy to generalize this to actual IP prefixes.
+A policy for a simple stateful firewall using our API is included in Figure~\ref{fig:firewallcode}. For simplicity, we assume that IP addresses range between 0 and 1000, however it is easy to generalize this to actual IP prefixes.
 In the example, source IPs from 0 to 10 are considered to be internal to the network and everything else, external. 
 
-If a packet is sent from an internal host to an external host, the pair of internal and external host is added to a list of trusted connection. If a packet is received from an external host, we lookup in the table to see if the connection is trusted, in which case we forward the packet to its destination, otherwise we drop it. The forwarding decision "Deliver" is just shorthand for "forward the packet according to its intended destination".
+If a packet is sent from an internal host to an external host, the pair of internal and external host is added to a list of trusted connections. If a packet is received from an external host, we lookup in the table to see if the connection is trusted, in which case we forward the packet to its destination, otherwise we drop it. The forwarding decision "Deliver" is just shorthand for "forward the packet according to its intended destination".
 An interesting point to be made about this function is that we are actively manipulating global policy state when we add entries to the stateful firewall's trusted connection relation.
 
 
@@ -165,7 +166,7 @@ f(pkt):
 \label{fig:firewallcode}
 \end{figure}
 
-From an algorithmic policy such as the one included in Fig~\ref{fig:firewallcode}, we generate a decision tree summarizing the function's interaction with the packet and the relevant decisions that will be made for particular classes of packets. The decision tree is created by analyzing the programmers function statically and then used by our runtime system to install switch rules and update them only when necessary (i.e., in response to changes in global state). For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
+From an algorithmic policy such as the one included in Fig~\ref{fig:firewallcode}, we generate a decision tree summarizing the function's interaction with the packet and the relevant decisions that will be made for particular classes of packets. The decision tree is created by analyzing the programmers function statically and then used by our run time system to install switch rules and update them only when necessary (i.e., in response to changes in global state). For the stateful firewall included in figure~\ref{fig:firewallcode}, the following decision tree would be generated:
 
 
 \begin{figure}[ht]
@@ -188,10 +189,10 @@ src $\in$ [101, 1000] $\mapsto$ Drop
 \end{lstlisting}
   
 
-  When a packet is received, it is forwarded according to the first matching concrete rule installed on the switch. If the packet is sent to the controller, we evaluate the decision tree for that packet, potentially adding and removing tuples from relations, before forwarding the packet according to forwarding decision held in the relevant leaf of the decision tree. We then regenerate the concrete rules using the updated relation. 
+  When a packet is received, it is forwarded according to the first matching concrete rule installed on the switch. If the packet is sent to the controller, we evaluate the decision tree for that packet, potentially adding and removing tuples from relations, before forwarding the packet according to forwarding decision held in the relevant leaf of the decision tree. We then regenerate the concrete rules using the updated relation.
   
   For example, a packing coming from \lstinline|src| 150 and \lstinline|dst| 10 would be matched by the second rule, and dropped on the switch.
-Subsequently, on a packet with \lstinline|src| 10 and \lstinline|dst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would updated as follow:
+Subsequently, on a packet with \lstinline|src| 10 and \lstinline|dst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would be updated as follows:
 
 \begin{lstlisting}[mathescape]
 src $\in$ [0, 100] $\mapsto$ Controller  
@@ -199,7 +200,7 @@ src = 150, dst = 10 $\mapsto$ Deliver
 src $\in$ [101, 1000] $\mapsto$ Drop  
 \end{lstlisting}
   
-In this example, packet traveling from \lstinline|150| to \lstinline|10| would be matched by the second rule on the switch and delivered, while packets from \lstinline|150| to other internal hosts or from other external host to any internal hosts would be dropped.
+In this example, a packet traveling from \lstinline|150| to \lstinline|10| would be matched by the second rule on the switch and delivered, while packets from \lstinline|150| to other internal hosts or from other external host to any internal hosts would be dropped.
 
 \section*{Algorithmic Policies and Decision Trees}
 In this section, we describe how an algorithmic policy may interact with a packet and with relations to generate a forwarding decision, and how we build a decision tree out of an algorithmic policy.
@@ -229,9 +230,9 @@ Conveniently, ranges on packet fields also give us a way to describe symbolic pa
 
    \subsection*{Forwarding Decision}
    % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to dst)
-	The programming model for \textit{Red Oak} is that each packet entering the network is mapped to a forwarding decision that describes where the packet should end up leaving the network. For simplicity, we assume that we are targeting a one big switch implementation of the network. The one big switch model has been heavily optimized \cite{Obs}, and we view the problem of determining paths through the network as orthogonal to our work here. 
+	The programming model for Oak is that each packet entering the network is mapped to a forwarding decision that describes where the packet should end up leaving the network. For simplicity, we assume that we are targeting a one big switch implementation of the network. The one big switch model has been heavily optimized (e.g., \cite{Obs}), and we view the problem of determining paths through the network as orthogonal to our work here. 
   
-   We provide several types of forwarding decisions to the programmer. The programmer can deliver a packet, according to the packet's desination, drop a packet, and forwarding a packet to a static location. Our model also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller (not shown in Fig~\ref{fig:range_api}). Finally, the programmer can combine several forwarding decisions into one by using a mulitcast forwarding decision.
+   We provide several types of forwarding decisions to the programmer. The programmer can deliver a packet, according to the packet's desination, drop a packet, and forwarding a packet to a static location. Our API also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller (not shown in Fig~\ref{fig:range_api}). Finally, the programmer can combine several forwarding decisions into one by using a mulitcast forwarding decision.
    
 
    \subsection*{Combining Algorithmic Policies}
@@ -253,7 +254,7 @@ let filter_src_range f r pkt =
 \end{figure}
 
    
-   For example, we include in Figure~\ref{fig:ex-hole} the source code for \lstinline|filter_src_range| a partial policy, which, given a policy \lstinline|f| and a range \lstinline|r|, will forwards all packets whose source IP is within range \lstinline|r| and drop the packet otherwise. The ability to compose two or more policies in sequence like this arises many times in practice. In our earlier firewall example, instead of delivering packets that were not dropped, we could instead have deferred to another function to decide how to handle trusted traffic.
+   For example, we include in Figure~\ref{fig:ex-hole} the source code for \lstinline|filter_src_range| a partial policy, which, given a policy \lstinline|f| and a range \lstinline|r|, will forward all packets whose source IP is within range \lstinline|r| and drop the packet otherwise. The ability to compose two or more policies in sequence like this arises many times in practice. In our earlier firewall example, instead of delivering packets that were not dropped, we could instead have deferred to another function to decide how to handle trusted traffic.
 
 
    \begin{figure}[ht]
@@ -268,13 +269,13 @@ let f_cross (f1) (f2) pkt =
 \label{fig:ex-cross}
 \end{figure}
    
-Various composition operator may be built as host language function to combine multiple algorithmic policies into a single one. For example, \lstinline|f_cross|, included in Figure~\ref{fig:ex-cross}, runs algorithmic policy \lstinline|f_1| and \lstinline|f_2| on input packets and multicasts them according to both forwarding decisions. This corresponds to the parallel composition operator for the Frenetic language \cite{Frenetic}, however here the composition takes place in a fully general purpose language.
+Various composition operator may be built as host language functions to combine multiple algorithmic policies into a single one. For example, \lstinline|f_cross|, included in Figure~\ref{fig:ex-cross}, runs algorithmic policy \lstinline|f_1| and \lstinline|f_2| on input packets and multicasts them according to both forwarding decisions. This corresponds to the parallel composition operator for the Frenetic language \cite{Frenetic}, however here the composition takes place in a fully general purpose language.
    
 \section*{Implementation}
 %that's the hope...
 
 \subsection*{A.P.I.}
-In our model, algorithmic policies interact with packets through A.P.I function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|A.P.I.|.
+In our programming model, algorithmic policies interact with packets through API function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|API.|.
 
 \begin{figure}[ht]
   \begin{lstlisting}[mathescape]
@@ -302,9 +303,9 @@ val in_range: pkt $\rightarrow$ field $\rightarrow$ range $\rightarrow$ bool
 
 \lstinline|field| enumerates the different fields of a packet. It can be extended to represent more fields of a packet's header. Associated with \lstinline|field| are \lstinline|range|s, possible values taken by a certain packet's field, within a given minimum value \lstinline|min_value| and maximum value \lstinline|max_value|. \lstinline|range| consists of list of integer pairs, representing a collection of intervals whose union correspond to the range of values of a packet. For simplicity, we consider integer fields here, but this could be extended, for example, to IP prefix, boolean flags, etc.
 
-\lstinline|forwarding_decision| enumerates the different forwarding decision which can be returned by an algorithmic policy. \lstinline|Deliver| forwards the packet to its destination, \lstinline|Drop| drops the packet, \lstinline|ForwardTo i| forwards the packet to a constant location \lstinline|i| and \lstinline|Multicast fd1 fd2| duplicates the packet and handles each according to \lstinline|fd1| and \lstinline|fd2| respectively.
+\lstinline|decision| enumerates the different forwarding decision which can be returned by an algorithmic policy. \lstinline|Deliver| forwards the packet to its destination, \lstinline|Drop| drops the packet, \lstinline|ForwardTo i| forwards the packet to a constant location \lstinline|i| and \lstinline|Multicast fd1 fd2| duplicates the packet and handles each according to \lstinline|fd1| and \lstinline|fd2| respectively.
 
-Algorithmic policy may base their forwarding decision on the result of calling the \lstinline|in_range pkt fld r|, which returns whether value of packet \lstinline|pkt| at field \lstinline|fld| is in the range \lstinline|r|.
+Algorithmic policies may base their forwarding decision on the result of calling the \lstinline|in_range pkt fld r|, which returns whether value of packet \lstinline|pkt| at field \lstinline|fld| is in the range \lstinline|r|.
 
 \begin{figure}[ht]
   \begin{lstlisting}[mathescape]
@@ -320,7 +321,7 @@ val in_rel: pkt $\rightarrow$ fields $\rightarrow$ relation $\rightarrow$ bool
 \end{figure}
 
 
-In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A.P.I.|, used to model stateful controller programs. A \lstinline|relation| represents a table in which each row contains a series of field values. It is referred to by a string. Policy writer may add a row to a relation \lstinline|rel| by calling the function \lstinline|add pkt flds rel|, which will populate the new row with the fields \lstinline|flds|' values of the current packet \lstinline|pkt|. Similarly, they may remove a row containing exactly the values of fields \lstinline|flds|' values of the current packet \lstinline|pkt| by calling \lstinline|remove pkt flds rel|. Finally, one may test if the values of fields \lstinline|flds| of current packet \lstinline|pkt| are in relation \lstinline|rel| by calling \lstinline|in_rel pkt flds rel|.
+In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|API|, used to model stateful controller programs. A \lstinline|relation| represents a table in which each row contains a series of field values. It is referred to by a string. The policy writer may add a row to a relation \lstinline|rel| by calling the function \lstinline|add pkt flds rel|, which will populate the new row with the fields \lstinline|flds|' values of the current packet \lstinline|pkt|. Similarly, they may remove a row containing exactly the values of fields \lstinline|flds|' values of the current packet \lstinline|pkt| by calling \lstinline|remove pkt flds rel|. Finally, one may test if the values of fields \lstinline|flds| of current packet \lstinline|pkt| are in relation \lstinline|rel| by calling \lstinline|in_rel pkt flds rel|.
 
 
 \begin{figure}[ht]
@@ -336,22 +337,22 @@ val run: policy $\rightarrow$ examples $\rightarrow$ unit
 \end{figure}
 
 
-The rest of the API, included in Figure~\ref{fig:build_api}, consists of functions used to interact with \textit{Red Oak}. \lstinline|compile| is used to trace a policy from a given function from packet to forwarding \lstinline|decision|. \lstinline|run| simulates the compiled \lstinline|policy| on a series of \lstinline|examples|. In the remainder of this section, we describe these functions in more detail.
+The rest of the API, included in Figure~\ref{fig:build_api}, consists of functions used to interact with Red Oak. The \lstinline|compile| function is used to symbolically analyze a user-function for forwarding packets and generate, from this function, a decision tree that is captured as an abstract type called policy. The \lstinline|run| function simulates the compiled \lstinline|policy| on a series of example packets entering the network. This incorporates the Red Oak run time system to update forwarding decisions based on the global state. In the remainder of this section, we describe these functions in more detail.
 
 \subsection*{Internal Representation of Packets and Policies}
 
-Packet are represented abstractly in the API as type \lstinline|pkt|, and are treated as concrete packet by algorithmic policies. In contrast, internally, \lstinline|pkt| represents a class of packet which could reach a certain point in the program. We call this class of packet a symbolic packet.
+Packets are represented abstractly in the API as type \lstinline|pkt|, and are treated as concrete packets by algorithmic policies. In contrast, internally, \lstinline|pkt| represents a class of packets which could reach a certain point in the program. We call this class of packets a symbolic packet.
 A symbolic packet consists of two parts:
 \begin{itemize}
-\item a map from \lstinline|field| to \lstinline|range|, representing the range of possible value from the class of packet
+\item a map from \lstinline|field| to \lstinline|range|, representing the range of possible value for the class of packets
   \item a list of pairs of \lstinline|relation| and list of \lstinline|field| representing the relation that the relevant \lstinline|field|'s value of the symbolic packet should be in. 
   \end{itemize}
   
-A \lstinline|policy| is represented internally as a decision tree whose leaves are forwarding decision and whose node are either branching according the range of a field value, according to a relation, or adding and removing components from a relation. To simplify rule generation, we also record in the tree the most general symbolic packet who can reach leaves, \lstinline|Add| and \lstinline|Remove| nodes.
+A \lstinline|policy| is represented internally as a decision tree whose leaves are forwarding decision and whose nodes are either branching according to the range of a field value, branching according to a membership in a relation, or adding and removing components from a relation. To simplify rule generation, we also record, at each node, the most general symbolic packet that can reach that node. The intuition is that any packets that can reach an \lstinline|add| or \lstinline|remove| node, must be observed by the controller.
 
 
 \subsection*{Tracing the Algorithmic Policy}
-From an algorithmic policy, we generate a decision tree using the function \lstinline|compile|.  
+From an algorithmic policy, we generate a decision tree using the function \lstinline|compile|. The pseudo code is shown in Figure~\ref{fig:compile-pseudo}
 
 \begin{figure*}[ht]
 \begin{lstlisting}[mathescape]
@@ -372,19 +373,19 @@ let compile (f: pkt $\rightarrow$ forwarding_decision) : policy =
 To do so, we repeatedly run the algorithmic policy \lstinline|f| on symbol packets generated to explore every reachable path.
 We begin by calling \lstinline|f| on a symbolic packet covering the full range of value for each of its fields.
 
-When \lstinline|f| calls \lstinline|in_range| to learn if the field \lstinline|fld|'s value is in the range \lstinline|r|, we
+When \lstinline|f| calls \lstinline|in_range| to learn if the packet \lstinline|fld|'s value is in the range \lstinline|r|, we
 \begin{enumerate}
-\item  create an \lstinline|Inrange| branching node in the decision tree
-\item refine the current symbolic packet to represent all packets in range \lstinline|r| that could reach this test in the algorithmic policy and return true
-\item push on the stack of packets to process a symbolic packets representing all packets in the complement of \lstinline|r| for field \lstinline|fld|.
+\item  Create a new \lstinline|in_range| branching node in the decision tree with subtrees corresponding to \lstinline|true| and \lstinline|false|
+\item Refine the current symbolic packet further to intersect the tested range. This corresponds to exploring the \lstinline|true| branch of the decision tree. We return true. 
+\item Push onto a stack consisting of remaining packets to process, a new symbolic packet that refines the range of the original symbolic packet to explore the false branch of the current range test by intersecting the complement of \lstinline|r| for field \lstinline|fld| with the current symbolic packet.
 \end{enumerate}
 
 
 Similarly, when the algorithmic policy calls \lstinline|in_relation| to learn if fields \lstinline|flds|'s value are in a relation \lstinline|rel|, we
 \begin{enumerate}
-  \item create an \lstinline|Inrelation| branching node in the decision tree
-  \item tag the current packet as being in the relation, return true
-  \item push on the stack of packets to process the same packet tagged as not being part of relation \lstinline|rel|.
+  \item Create a new \lstinline|in_rel| branching node in the decision tree wit hsubtrees corresponding to \lstinline|true| and \lstinline|false|
+  \item Tag the current packet with the symbolic constraint of being in the relation and return true
+  \item Push onto a stack consisting of remaining packets to process, a new symbolic that is the same as the current packet, but tagged as not being part of the relation \lstinline|rel|.
 \end{enumerate}
 When \lstinline|f| calls \lstinline|add| or \lstinline|remove|, we record in the decision the current symbolic packet, the relation and the fields being added or removed from the relation before continuing with the execution of \lstinline|f|.
 
@@ -451,8 +452,6 @@ let run (pol: policy) (inputs: examples) : unit =
   \end{figure*}
 
 
-While we currently start the simulation with empty relation, \lstinline|run| could easily be extended to initialize the controller with pre-populated relations. 
-
 
 \subsection*{Optimizations}
    % 1) expand tree before add/remove nodes with a match on that relation ( based on add(p); add(p) == add(p) so can shortcircuit if p is already in the relation)
@@ -499,18 +498,19 @@ Other optimizations may further reduce the number of packet sent to the controll
 
 %???
 
-\section*{Conclusion}
-In this paper, we have introduced \textit{Red Oak}, a SDN library for proactively generating a dynamic controller from an arbitrary programmer-defined policy in a general purpose programming language.
-\textit{Red Oak} provides programmers the abstraction that their centralized policy will run on each 
+\section*{Future Work and Conclusion}
+In this paper, we have introduced Oak, a SDN library for proactively switch forwarding rules
+from an arbitrary programmer-defined policy in a general purpose programming language.
+Oak provides programmers the abstraction that their centralized policy will run on each 
 new packet entering the network, while alleviating for the programmer need to consider
 how to split the decision logic between to switches and the controller.
 
-The \textit{Red Oak} API exposes simple tests on packet fields as well as a global, mutable table data
+The Oak API exposes simple tests on packet fields as well as a global, mutable table data
 structure for recording information about previous packets observed in the network.
 To ensure that most packets are handled directly on the switches, we employ a static analysis
 that pushes symbolic packets through the programmer's policy to explore how all classes of 
 packets will be handled, determining which packets must be observed by the controller and which 
-packets need not be. Finally, we describe our \textit{Red Oak} prototype's run-time system that 
+packets need not be. Finally, we describe our Oak prototype's run-time system that 
 specializes decisions after making concrete observations in the network that dictate forwarding policy.
 
 
