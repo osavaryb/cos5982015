@@ -92,7 +92,7 @@ global network state, which packets to observe at the centralized controller,
 and how to minimize latency by pushing as much decision logic
 as possible onto the high-performance switch elements.
 
-We introduce a high-level SDN library that can be embedded into existing general-purpose languages.
+We developed a high-level SDN library that can be embedded into existing general-purpose languages.
 Our library exposes an API that allows programmers to directly express behavioral intent, 
 while leaving the performance details to the library's optimization algorithms.
 Our library supports basic tests on packet fields as well as a simple mutable table
@@ -110,24 +110,24 @@ However, the question remains as how best to write programs for SDNs.
 
 Recent collaborations between researchers in networking and programming languages have resulting in a number of new network-specific programming languages. One example is the Frenetic family of languages \cite{Frenetic}, which allow programmers to write simple packet processing functions in a domain-specific language and combine them together using policy combinators. Another approach, described in Maple \cite{Maple}, is to allow programmers to write policies in an arbitrary, high-level programming language as a function that takes a packet and produces a forwarding path, the algorithmic policy. Conceptually, the function is run anew on each packet that enters the network.
 
-Ultimately, the performance requirements of networks dictate that the centralized controller(s) can not handle most traffic since redirecting packets to be handled by the controller incurs orders of magnitude increased latency compared to those being handled by switches. For this reason, compiler technologies for network programming languages must be able to push much of the control plane functionality into the data plane switches themselves. 
+Ultimately, the performance requirements of networks dictate that the centralized controller(s) should not handle most traffic since redirecting packets to be handled by the controller incurs orders of magnitude increased latency compared to those being handled by switches. For this reason, compiler technologies for network programming languages must be able to push much of the control plane functionality into the data plane switches themselves. 
 
-For Maple, the authors show how to optimize the controller so that packets are handled without having to run the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. Unfortunately, there are a number of limitations to this approach:
+In Maple\cite{Maple}, the authors show how to optimize the controller to reduce the number of packets handled by running the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. Unfortunately, there are a number of limitations to this approach:
 
 
 \begin{enumerate}
-\item Since controller decisions are memoized, all initial packets must first go to the controller before it can learn how to forward similar packets directly in the data plane. This leads to a cold-startup phase with high packet latency.
+\item Since controller decisions are memoized at runtime, all packets must initially go to the controller before it can learn how to forward similar packets directly in the data plane. This leads to a cold-startup phase with high packet latency.
 \item The controller only observes concrete packets. This can lead to installing overly specialized forwarding rules on the switches that miss some of the high-level intent of the programmer (e.g., matching all packets with a particular IP prefix).
 \item Most interesting network functions keep some global state (e.g., MAC learning table, ACLs). To ensure memoized decisions do not become invalid when the controller's environment (global state) changes, programmers must manually decide which previous decisions to invalidate.
 \end{enumerate}
 
 
-In this work, we develop a language-independent API and compilation strategy that, like Maple, allows programmers to write network programs with the full generality of a high-level, general-purpose programming language.
+In this work, we develop a language-independent API together with a compilation strategy that, like Maple, allows programmers to write network programs with the full generality of a high-level, general-purpose programming language.
 However, we address each of the shortcomings in Maple listed above. Our contributions are the following:
 
 \begin{enumerate}
-\item We describe a static analysis on the user-defined forwarding policy that pushes symbolic packets through the function to explore all possible paths of execution. This analysis is then used to proactively generate forwarding rules to install in the network.
-\item We provide a packet API that lets programmers ask if a field is in a particular range (e.g., IP prefix) rather than if the field equals a particular value. This more expressive test works together with our analysis to better capture programmer intent when setting up forwarding decisions in the data plane.
+\item We describe a static analysis on the user-defined forwarding policy that explore all possible paths of execution by evaluation the function on symbolic packets. This analysis is then used to proactively generate a network controller and initial forwarding rules to install on the network switches.
+\item We provide a packet API that lets programmers ask if a field is in a particular range (e.g. an IP prefix) rather than if the field equals a particular value. This more expressive test works together with our analysis to better capture programmer intent when setting up forwarding decisions in the data plane.
 \item We provide a mutable relation data structure in our API to maintain global state. The data structure works together with our analysis to provide an automatic invalidation scheme. The analysis determines which future packets might affect global state and ensures that these relevant packets are actually seen by the controller.
 \end{enumerate}
 
@@ -230,7 +230,7 @@ Conveniently, ranges on packet fields also give us a way to describe symbolic pa
 
    \subsection*{Forwarding Decision}
    % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to dst)
-	The programming model for Oak is that each packet entering the network is mapped to a forwarding decision that describes where the packet should end up leaving the network. For simplicity, we assume that we are targeting a one big switch implementation of the network. The one big switch model has been heavily optimized (e.g., \cite{Obs}), and we view the problem of determining paths through the network as orthogonal to our work here. 
+	The programming model for \textit{Red Oak} is that each packet entering the network is mapped to a forwarding decision that describes where the packet should end up leaving the network. For simplicity, we assume that we are targeting a one big switch implementation of the network. The one big switch model has been heavily optimized (e.g., \cite{Obs}), and we view the problem of determining paths through the network as orthogonal to our work here. 
   
    We provide several types of forwarding decisions to the programmer. The programmer can deliver a packet, according to the packet's desination, drop a packet, and forwarding a packet to a static location. Our API also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller (not shown in Fig~\ref{fig:range_api}). Finally, the programmer can combine several forwarding decisions into one by using a mulitcast forwarding decision.
    
@@ -338,7 +338,7 @@ val run: policy $\rightarrow$ examples $\rightarrow$ unit
 \end{figure}
 
 
-The rest of the API, included in Figure~\ref{fig:build_api}, consists of functions used to interact with Red Oak. The \lstinline|compile| function is used to symbolically analyze a user-function for forwarding packets and generate, from this function, a decision tree that is captured as an abstract type called policy. The \lstinline|run| function simulates the compiled \lstinline|policy| on a series of example packets entering the network. This incorporates the Red Oak run time system to update forwarding decisions based on the global state. In the remainder of this section, we describe these functions in more detail.
+The rest of the API, included in Figure~\ref{fig:build_api}, consists of functions used to interact with \textit{Red Oak}. The \lstinline|compile| function is used to symbolically analyze a user-function for forwarding packets and generate, from this function, a decision tree that is captured as an abstract type called policy. The \lstinline|run| function simulates the compiled \lstinline|policy| on a series of example packets entering the network. This incorporates the \textit{Red Oak} run time system to update forwarding decisions based on the global state. In the remainder of this section, we describe these functions in more detail.
 
 \subsection*{Internal Representation of Packets and Policies}
 
@@ -444,16 +444,18 @@ let run (pol: policy) (inputs: examples) : unit =
       cr $\gets$ build_concrete_rules(sr, rel)
       for each packets pkt in input,
       match evaluate_rules(cr, pkt) with
-       | Some fd $\to$ Forward(pkt, fd)
+       | Some fd $\to$ forward(pkt, fd)
        | None $\to$
            (fd, rel) $\gets$ evaluate_policy(pkt)
            cr $\gets$ build_concrete_rules(sr, rel)
-           Forward(pkt, fd)     
+           forward(pkt, fd)     
 \end{lstlisting}
 
 \caption{Pseudocode for the run function}
 \label{fig:run-pseudo}
   \end{figure}
+
+While we currently start the simulation with empty relation, \lstinline|run| could easily be extended to initialize the controller with pre-populated relations. 
 
 
 
@@ -498,22 +500,22 @@ Other optimizations may further reduce the number of packet sent to the controll
 
 
 \section*{Related Work}
-There are a number of existing programming abstractions for SDN. The Frenetic~\citep{Frenetic} family of languages provide domain-specific operators for composing packet processing functions together and compiling them to switches. Here we focus on compiling arbitrary programmer functions in a general-purpose language. Merlin~\cite{Merlin} is a language for configuring networks based on path and quality of service constraints. However, Merlin focuses mainly on stateless, static network configurations, whereas we focus on stateful, dynamic applications. Our work is most closely related to Maple~\citep{Maple}. Like Maple, we implement policies in a general purpose language, but rather than reactively memoizing decisions, we generate forwarding decision proactively through symbolic analysis.
+There are a number of existing programming abstractions for SDN. The Frenetic~\citep{Frenetic} family of languages provide domain-specific operators for composing packet processing functions together and compiling them to switches. Here, we focus on compiling arbitrary programmer functions in a general-purpose language. Merlin~\cite{Merlin} is a language for configuring networks based on path and quality of service constraints. However, Merlin focuses mainly on stateless, static network configurations, whereas we focus on stateful, dynamic applications. Our work is most closely related to Maple~\citep{Maple}. Like Maple, we implement policies in a general purpose language, but rather than reactively memoizing decisions, we generate forwarding decision proactively through symbolic analysis.
 
 
 \section*{Conclusion}
-In this paper, we have introduced Oak, a SDN library for proactively switch forwarding rules
+In this paper, we have introduced \textit{Red Oak}, a SDN library for proactively switch forwarding rules
 from an arbitrary programmer-defined policy in a general purpose programming language.
-Oak provides programmers the abstraction that their centralized policy will run on each 
+\textit{Red Oak} provides programmers the abstraction that their centralized policy will run on each 
 new packet entering the network, while alleviating for the programmer need to consider
 how to split the decision logic between to switches and the controller.
 
-The Oak API exposes simple tests on packet fields as well as a global, mutable table data
+The \textit{Red Oak} API exposes simple tests on packet fields as well as a global, mutable table data
 structure for recording information about previous packets observed in the network.
 To ensure that most packets are handled directly on the switches, we employ a static analysis
 that pushes symbolic packets through the programmer's policy to explore how all classes of 
 packets will be handled, determining which packets must be observed by the controller and which 
-packets need not be. Finally, we describe our Oak prototype's run-time system that 
+packets need not be. Finally, we describe our \textit{Red Oak} prototype's run-time system that 
 specializes decisions after making concrete observations in the network that dictate forwarding policy.
 
 
