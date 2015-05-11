@@ -276,7 +276,7 @@ Various composition operator may be built as host language functions to combine 
 We now describe our prototype implementation of \textit{Red Oak} as a library embedded in the Ocaml programming language.
 
 \subsection*{A.P.I.}
-In our programming model, algorithmic policies interact with packets through API function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|API.|.
+In our programming model, algorithmic policies interact with packets through API function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|API|.
 
 \begin{figure}[ht]
   \begin{lstlisting}[mathescape]
@@ -498,11 +498,10 @@ Other optimizations may further reduce the number of packet sent to the controll
 
 
 \section*{Related Work}
-% deeper comparison with Maple
+There are a number of existing programming abstractions for SDN. The Frenetic~\citep{Frenetic} family of languages provide domain-specific operators for composing packet processing functions together and compiling them to switches. Here we focus on compiling arbitrary programmer functions in a general-purpose language. Merlin~\cite{Merlin} is a language for configuring networks based on path and quality of service constraints. However, Merlin focuses mainly on stateless, static network configurations, whereas we focus on stateful, dynamic applications. Our work is most closely related to Maple~\citep{Maple}. Like Maple, we implement policies in a general purpose language, but rather than reactively memoizing decisions, we generate forwarding decision proactively through symbolic analysis.
 
-%???
 
-\section*{Future Work and Conclusion}
+\section*{Conclusion}
 In this paper, we have introduced Oak, a SDN library for proactively switch forwarding rules
 from an arbitrary programmer-defined policy in a general purpose programming language.
 Oak provides programmers the abstraction that their centralized policy will run on each 
