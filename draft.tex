@@ -355,21 +355,21 @@ A \lstinline|policy| is represented internally as a decision tree whose leaves a
 \subsection*{Tracing the Algorithmic Policy}
 From an algorithmic policy, we generate a decision tree using the function \lstinline|compile|. The pseudo code is shown in Figure~\ref{fig:compile-pseudo}
 
-\begin{figure*}[ht]
+\begin{figure}[ht]
 \begin{lstlisting}[mathescape]
-let compile (f: pkt $\rightarrow$ forwarding_decision) : policy =
-      push most general packet to (empty) stack
-      set the current location to be the root of an empty decision tree
+let compile (f: pkt $\rightarrow$ decision) : policy =
+      stack $\gets$ empty.push(new packet)
+      root $\gets$ new unexplored node
       while (stack is not empty)
-         pop the top of the stack as pkt
-         run f of pkt resulting in a forwarding decision fd and a refined packet pkt
-         record the forwarding decision for the symbolic packet pkt in the decision tree
-         set the current location to be the root of the decision tree and repeat
-  
+          loc $\gets$ root
+          pkt $\gets$ stack.pop
+          fd $\gets$ f(pkt) 
+          loc $\gets$ Leaf fd
+      return root    
 \end{lstlisting}
 \caption{Pseudocode for the compile function}
 \label{fig:compile-pseudo}
-\end{figure*}
+\end{figure}
 
 To do so, we repeatedly run the algorithmic policy \lstinline|f| on symbol packets generated to explore every reachable path.
 We begin by calling \lstinline|f| on a symbolic packet covering the full range of value for each of its fields.
@@ -436,24 +436,24 @@ We provide a function \lstinline|run| to simulate the controller policy on a seq
 
 \lstinline|run| starts by building the symbolic rules for the given policy, and generating the concrete rules assuming all relations to be empty. In sequence, packets are matched with the current concrete rules, recording the forwarding decision. If a packet is sent to the controller, we evaluate the policy on the packet, potentially adding or removing tuples from relations. We then re-generate the concrete rules with the updated relation, before recording the forwarding decision.
 
-\begin{figure*}[ht]
-\begin{lstlisting}
+\begin{figure}[ht]
+\begin{lstlisting}[mathescape]
 let run (pol: policy) (inputs: examples) : unit =
-      build the symbolic rules for policy pol
-      generate the concrete rules with all relations empty
-      for each packets in input,
-          find the first rule matching the packet, and record the forwarding decision fd
-          if packet is sent to the controller then
-              evaluate the policy on the packet, potentially updating relations
-              regenerate concrete rules
-              forward the packet according the evaluated forwarding decision
-          else
-              forward the packet according to fd 
+      sr $\gets$ build_symbolic_rules(pol)
+      rel $\gets$ empty
+      cr $\gets$ build_concrete_rules(sr, rel)
+      for each packets pkt in input,
+      match evaluate_rules(cr, pkt) with
+       | Some fd $\to$ Forward(pkt, fd)
+       | None $\to$
+           (fd, rel) $\gets$ evaluate_policy(pkt)
+           cr $\gets$ build_concrete_rules(sr, rel)
+           Forward(pkt, fd)     
 \end{lstlisting}
 
 \caption{Pseudocode for the run function}
 \label{fig:run-pseudo}
-  \end{figure*}
+  \end{figure}
 
 
 
