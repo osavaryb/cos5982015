@@ -115,18 +115,18 @@ In Maple \cite{Maple}, the authors show how to optimize the controller to reduce
 
 
 \begin{enumerate}
-\item Since controller decisions are memoized, all initial packets must first go to the controller before it can learn how to forward similar packets directly in the data plane. This leads to a cold-startup phase with high packet latency.
+\item Since controller decisions are memoized at runtime, all packets must initially go to the controller before it can learn how to forward similar packets directly in the data plane. This leads to a cold-startup phase with high packet latency.
 \item The controller only observes concrete packets. This can lead to installing overly specialized forwarding rules on the switches that miss some of the high-level intent of the programmer (e.g., matching all packets with a particular IP prefix).
 \item Most interesting network functions keep some global state (e.g., MAC learning table, ACLs). To ensure memoized decisions do not become invalid when the controller's environment (global state) changes, programmers must manually decide which previous decisions to invalidate.
 \end{enumerate}
 
 
-In this work, we language-independent API and compilation strategy that, like Maple, allows programmers to write network programs with the full generality of a high-level, general-purpose programming language.
-However, we address each of the shortcomings in Maple listed above. Our contributions are the following:
+In this work, we devised a language-independent API together with a compilation strategy that, like Maple, allows programmers to write network programs with the full generality of a high-level, general-purpose programming language.
+However, we address each of the shortcomings  listed above. Our contributions are the following:
 
 \begin{enumerate}
-\item We describe a static analysis on the user-defined forwarding policy that pushes symbolic packets through the function to explore all possible paths of execution. This analysis is then used to proactively generate forwarding rules to install in the network.
-\item We provide a packet API that lets programmers ask if a field is in a particular range (e.g., IP prefix) rather than if the the field equals a particular value. This more expressive test works together with our analysis to better capture programmer intent when setting up forwarding decision in the data plane.
+\item We describe a static analysis on the user-defined forwarding policy that explore all possible paths of execution by evaluating the function on symbolic packets. This analysis is then used to proactively generate a network controller and initial forwarding rules to install in the network.
+\item We provide a packet API that lets programmers ask if a field is in a particular range (e.g. an IP prefix) rather than if the field equals a particular value. This more expressive test works together with our analysis to better capture programmer intent when setting up forwarding decision in the data plane.
 \item We provide a mutable relation data structure in our API to maintain global state. The data structure works together with our analysis to provide an automatic invalidation scheme. The analysis determines which future packets might affect global state and ensures that these relevant packets are actually seen by the controller.
 \end{enumerate}
 
