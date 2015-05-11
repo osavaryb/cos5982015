@@ -91,7 +91,7 @@ global network state, which packets to observe at the centralized controller,
 and how to minimize latency by pushing as much decision logic
 as possible onto the high-performance switch elements.
 
-We introduce a high-level SDN library that can be embedded into existing languages.
+We developed a high-level SDN library that can be embedded into existing languages.
 Our library exposes an API that allows programmers to directly express behavioral intent, 
 while leaving the performance details to the library's optimization algorithms.
 Our library supports basic tests on packet fields as well as a simple mutable table
@@ -105,13 +105,13 @@ and observing the resulting packet forwarding decision.
 \section*{Introduction}
 
 One of the major outcomes of the Software Defined Networking (SDN) movement has been a unified, open interface to the switch hardware. This has, in turn, enabled new opportunities for network programmability. The typical model for SDN involves a centralized controller or distributed set of controllers programming switches dynamically to implement the desired control functionality.
-However, the questions remains as to how best to write programs for SDNs.
+However, the question remains as to how best to write programs for SDNs.
 
 Recent collaborations between researchers in networking and programming languages have resulting in a number of new network-specific programming languages. One example is the Frenetic family of languages \cite{Frenetic}, which allow programmers to write simple packet processing functions in a domain-specific language and combine them together using policy combinators. Another approach, described in Maple \cite{Maple}, is to allow programmers to write policies in an arbitrary, high-level programming language as a function that takes a packet and produces a forwarding path, the algorithmic policy. Conceptually, the function is run anew on each packet that enters the network.
 
-Ultimately, the performance requirements of networks dictate that the centralized controller(s) can not handle most traffic since redirecting packets to be handled by the controller incurs orders of magnitude increased latency compared to those being handled by switches. For this reason, compiler technologies for network programming languages must be able to push much of the control plane functionality into the data plane switches themselves. 
+Ultimately, the performance requirements of networks dictate that the centralized controller(s) should not handle most traffic since redirecting packets to be handled by the controller incurs orders of magnitude increased latency compared to those being handled by switches. For this reason, compiler technologies for network programming languages must be able to push much of the control plane functionality into the data plane switches themselves. 
 
-For Maple, the authors show how to optimize the controller so that packets are handled without having to run the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. Unfortunately, there are a number of limitations to this approach:
+In Maple \cite{Maple}, the authors show how to optimize the controller to reduce the number of packets are handled by running the function on them. Maple does so by providing a packet API capturing each access to packet fields, and memoizing the results of the function for subsequent packets sharing the accessed fields' values. Unfortunately, there are a number of limitations to this approach:
 
 
 \begin{enumerate}
