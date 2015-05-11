@@ -18,7 +18,8 @@
 \usepackage{tikz}
 \usepackage{tikz-qtree}
 
-
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 
 % Set the overall layout of the tree
 %\tikzstyle{level 1}=[level distance=3.5cm, sibling distance=3.5cm]
@@ -324,8 +325,8 @@ val run: policy $\rightarrow$ examples $\rightarrow$ unit
 From an algorithmic policy, we generate a decision tree  whose leaves are forwarding decision and whose node are either branching according the range of a field value, according to a relation ,or adding and removing components from a relation.
 
 \begin{figure*}[ht]
-\begin{lstlisting}
-let compile (f: packet -> forwarding_decision) : policy =
+\begin{lstlisting}[mathescape]
+let compile (f: pkt $\rightarrow$ forwarding_decision) : policy =
       push most general packet to (empty) stack
       set the current location to be the root of an empty decision tree
       while (stack is not empty)
@@ -403,7 +404,7 @@ We provide a function \lstinline|run| to simulate the controller policy on a seq
 
 \begin{figure*}[ht]
 \begin{lstlisting}
-let run (pol: policy) (inputs: ((field*int) list) list) : unit =
+let run (pol: policy) (inputs: examples) : unit =
       build the symbolic rules for policy pol
       generate the concrete rules with all relations empty
       for each packets in input,
