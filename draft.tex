@@ -19,6 +19,7 @@
 \usepackage{tikz-qtree}
 
 
+
 % Set the overall layout of the tree
 %\tikzstyle{level 1}=[level distance=3.5cm, sibling distance=3.5cm]
 %\tikzstyle{level 2}=[level distance=3.5cm, sibling distance=2cm]
@@ -48,7 +49,6 @@
 %\subsectionfont{\fontsize{11}{14}\selectfont}
 
 \lstset{morekeywords={in_range, in_rel, add, remove, Drop, Deliver, ForwardTo, Multicast, IpSrc, IpDst}}
-
 
 \usepackage{amsmath, amssymb}
 
@@ -157,30 +157,28 @@ From an algorithmic policy such as the one included in Fig~\ref{fig:firewallcode
   \end{figure}
 
 This decision tree would, in turn, lead to the following set of prioritized symbolic rules. We call these symbolic rules because they represent constraints on the actual concrete rules. The concrete rules our system will install in the network depend on the current contents of the trusted connection relation. In particular, for each IP source that is trusted to communicate with an internal destination in the "conn" relation, we will get a concrete rule permitting this communication.
-  \begin{lstlisting}
-ipsrc in [0, 100] --> Sent to Controller
-ipsrc in [101, 1000], (ipsrc,ipdst) in conn
-                  --> Deliver
-ipsrc in [101, 1000], (ipsrc,ipdst) not in conn
-                  --> Drop
+  \begin{lstlisting}[mathescape]
+src $\in$ [0, 100] $\mapsto$ Controller
+src $\in$ [101, 1000], (src,dst) $\in$ conn  $\mapsto$ Deliver
+src $\in$ [101, 1000], (src,dst) $\notin$ conn $\mapsto$ Drop
   \end{lstlisting}
 
 After initialization (starting with no trusted connections), the concrete rules would be generated from the symbolic rules by having all relations be empty:
-\begin{lstlisting}
-ipsrc in [0, 100] ---> Sent to Controller  
-ipsrc in [101, 1000] ---> Drop  
+\begin{lstlisting}[mathescape]
+src $\in$ [0, 100] $\mapsto$ Controller  
+src $\in$ [101, 1000] $\mapsto$ Drop  
 \end{lstlisting}
   
 
   When a packet is received, it is forwarded according to the first matching concrete rule installed on the switch. If the packet is sent to the controller, we evaluate the decision tree for that packet, potentially adding and removing tuples from relations, before forwarding the packet according to forwarding decision held in the relevant leaf of the decision tree. We then regenerate the concrete rules using the updated relation. 
   
-  For example, a packing coming from \lstinline|ipsrc| 150 and \lstinline|ipdst| 10 would be matched by the second rule, and dropped on the switch.
-Subsequently, on a packet with \lstinline|ipsrc| 10 and \lstinline|ipdst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would updated as follow:
+  For example, a packing coming from \lstinline|src| 150 and \lstinline|dst| 10 would be matched by the second rule, and dropped on the switch.
+Subsequently, on a packet with \lstinline|src| 10 and \lstinline|dst| 150, the first rules would be matched, evaluating the decision tree would add tuple $(10,150)$ to relation \lstinline|conn|, the packet would be forwarded according to the forwarding decision \lstinline|Deliver|, and the concrete rules would updated as follow:
 
-\begin{lstlisting}
-ipsrc in [0, 100] ---> Sent to Controller  
-ipsrc = 150, ipdst = 10 ---> Deliver  
-ipsrc in [101, 1000] ---> Drop  
+\begin{lstlisting}[mathescape]
+src $\in$ [0, 100] $\mapsto$ Controller  
+src = 150, dst = 10 $\mapsto$ Deliver  
+src $\in$ [101, 1000] $\mapsto$ Drop  
 \end{lstlisting}
   
 In this example, packet traveling from \lstinline|150| to \lstinline|10| would be matched by the second rule on the switch and delivered, while packets from \lstinline|150| to other internal hosts or from other external host to any internal hosts would be dropped.
@@ -229,7 +227,7 @@ let filter_src_range f r pkt =
  if in_range pkt IpSrc r then
     f pkt
  else
-   Drop   
+    Drop   
 \end{lstlisting}
 
 \caption{Example of a Partial Algorithmic Policy}
@@ -242,10 +240,10 @@ let filter_src_range f r pkt =
 
    \begin{figure}[ht]
 \begin{lstlisting}
-let f_cross (f_1) (f_2) pkt =
-  let d_1 = f_1 pkt in
-  let d_2 = f_2 pkt in
-  Multicast (d_1,d_2)
+let f_cross (f1) (f2) pkt =
+  let d1 = f1 pkt in
+  let d2 = f2 pkt in
+  Multicast (d1,d2)
 \end{lstlisting}
 
 \caption{Example of a Composition Operator}
@@ -266,25 +264,22 @@ In our model, algorithmic policies interact with packets through A.P.I function 
 Algorithmic policy may base their forwarding decision on the result of calling the \lstinline|in_range pkt fld r|, which returns whether value of packet \lstinline|pkt| at field \lstinline|fld| is in the range \lstinline|r|.
 
 \begin{figure}[ht]
-  \begin{lstlisting}
-type packet
-
+  \begin{lstlisting}[mathescape]
+type pkt
 type field = IpSrc | IpDst 
-
+type fields = field list
 type range = (int*int) list
+
+type decision =
+	| Deliver
+	| Drop
+	| ForwardTo of int
+	| Multicast of decision * decision
 
 val min_value: int 
 val max_value: int
 
-type forwarding_decision =
-	| Deliver
-	| Drop
-	| ForwardTo of int
-	| Multicast of forwarding_decision
-                      * forwarding_decision
-
-
-val in_range: packet -> field -> range -> bool
+val in_range: pkt $\rightarrow$ field $\rightarrow$ range $\rightarrow$ bool
 \end{lstlisting}
 
 \caption{Signature of the packet and range-branching portion of the API}
@@ -298,17 +293,12 @@ In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A
 
 
 \begin{figure}[ht]
-  \begin{lstlisting}
+  \begin{lstlisting}[mathescape]
 type relation = string
 
-val add: packet -> field list -> relation
-    -> unit
-
-val remove: packet -> field list -> relation
-    -> unit
-
-val in_rel: packet -> field list -> relation
-    -> bool
+val add: pkt $\rightarrow$ fields $\rightarrow$ relation $\rightarrow$ unit
+val remove: pkt $\rightarrow$ fields $\rightarrow$ relation $\rightarrow$ unit
+val in_rel: pkt $\rightarrow$ fields $\rightarrow$ relation $\rightarrow$ bool
 \end{lstlisting}
 
 \caption{Signature of the relation portion of the API}
@@ -319,14 +309,11 @@ val in_rel: packet -> field list -> relation
 
 
 \begin{figure}[ht]
-  \begin{lstlisting}
-val compile: (packet -> forwarding_decision)
-    -> policy
-    
-val run: policy -> ((field * int) list) list
-    -> unit
-    
-val print_policy: policy -> unit
+  \begin{lstlisting}[mathescape]
+type examples =  ((field * int) list) list
+  
+val compile: (pkt $\rightarrow$ decision) $\rightarrow$ policy
+val run: policy $\rightarrow$ examples $\rightarrow$ unit
   \end{lstlisting}
 
   \caption{Signature of the interactive portion of the API}
@@ -386,36 +373,26 @@ To do so, we do a depth-first, left to right traversal of the tree. On reaching 
 We then generate concrete rules from a collection of relations and a list of symbolic rules. Concrete rules differ from symbolic rule in that they do not depend on relations. Each symbolic rule expands into a list of concrete rules. For each of the tuple in the relation on which the rule depend, we create a new rule, refining the ranges of the relevant fields of the symbolic packet with the values of the tuple. We repeat this operation on the created list of symbolic rules until all dependant relations are taken care off, at which point the rules are considered concrete. Due to the left-to-right order of collection, we do not need to modify symbolic rules marked as not in a certain relation, as all the packets in the relation will have been matched by the positive rule before reaching this one.
 
 For example, taking the following symbolic rules: 
-  \begin{lstlisting}
-ipsrc in [101, 1000], (ipsrc,ipdst) in conn
-                  --> Deliver
-ipsrc in [101, 1000], (ipsrc,ipdst) not in conn
-                  --> Drop
+  \begin{lstlisting}[mathescape]
+src $\in$ [101, 1000], (src,dst) $\in$ conn $\mapsto$ Deliver
+src $\in$ [101, 1000], (src,dst) $\notin$ conn $\mapsto$ Drop
   \end{lstlisting}
   and the relation ``conn'' as \lstinline| {(150,10), (200, 9), (8, 150)}|, we start by expanding the first rule to:
 \begin{lstlisting}[mathescape]
-ipsrc in ([101, 1000] $\cap$ 150), ipdst = 10
-    --> Deliver
-ipsrc in ([101, 1000] $\cap$ 200), ipdst = 9
-    --> Deliver
-ipsrc in ([101, 1000] $\cap$ 8), ipdst = 150
-    --> Deliver
+src $\in$ ([101, 1000] $\cap$ 150), dst = 10 $\mapsto$ Deliver
+src $\in$ ([101, 1000] $\cap$ 200), dst = 9 $\mapsto$ Deliver
+src $\in$ ([101, 1000] $\cap$ 8), dst = 150 $\mapsto$ Deliver
  \end{lstlisting}
 which reduces to:
-\begin{lstlisting}
-ipsrc = 150, ipdst = 10
-    --> Deliver
-ipsrc = 200, ipdst = 9
-    --> Deliver
+\begin{lstlisting}[mathescape]
+src = 150, dst = 10 $\mapsto$ Deliver
+src = 200, dst = 9 $\mapsto$ Deliver
  \end{lstlisting}
 Note the omission of the third concrete rule, resulting from \lstinline|ipsrc| having an empty range. The second symbolic rule is then taken directly as concrete rule, with the packet in the relation having been matched by the previously generated concrete rule, resulting in:
-\begin{lstlisting}
-ipsrc = 150, ipdst = 10
-    --> Deliver
-ipsrc = 200, ipdst = 9
-    --> Deliver  
-ipsrc in [101, 1000]
-    --> Drop
+\begin{lstlisting}[mathescape]
+src = 150, dst = 10 $\mapsto$ Deliver
+src = 200, dst = 9 $\mapsto$ Deliver
+src $\in$ [101, 1000] $\mapsto$ Drop
 \end{lstlisting}
 
 \subsection*{Simulating the Network Controller}
@@ -459,22 +436,19 @@ We implemented in \textit{Red Oak} a local transformation adding an \lstinline|i
 
 
 From which the following symbolic rule would be generate:
-\begin{lstlisting}
-ipsrc in [0, 100], (ipdst, ipsrc) in conn
-                  --> Deliver
-ipsrc in [0, 100] --> Sent to Controller
-ipsrc in [101, 1000], (ipsrc,ipdst) in conn
-                  --> Deliver
-ipsrc in [101, 1000], (ipsrc,ipdst) not in conn
-                  --> Drop
+\begin{lstlisting}[mathescape]
+src $\in$ [0, 100], (dst, src) in conn $\mapsto$ Deliver
+src $\in$ [0, 100] $\mapsto$ Controller
+src $\in$ [101, 1000], (src,dst) $\in$ conn $\mapsto$ Deliver
+src $\in$ [101, 1000], (src,dst) $\notin$ conn $\mapsto$ Drop
 \end{lstlisting}
 
 With empty relation, the concrete rules would be the same as with the unoptimized decision tree. However, after seeing, for example, packet with \lstinline|ipsrc| 10 and \lstinline|ipdst| 150, the rules would be
-\begin{lstlisting}
-ipsrc = 10, ipdst = 150 ---> Deliver  
-ipsrc in [0, 100] ---> Sent to Controller  
-ipsrc = 150, ipdst = 10 ---> Deliver  
-ipsrc in [101, 1000] ---> Drop  
+\begin{lstlisting}[mathescape]
+src = 10, dst = 150 $\mapsto$ Deliver  
+src $\in$ [0, 100] $\mapsto$ Controller  
+src = 150, dst = 10 $\mapsto$ Deliver  
+src $\in$ [101, 1000] $\mapsto$ Drop  
 \end{lstlisting}
 
 
