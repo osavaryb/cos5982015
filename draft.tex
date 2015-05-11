@@ -451,6 +451,8 @@ let run (pol: policy) (inputs: examples) : unit =
   \end{figure*}
 
 
+While we currently start the simulation with empty relation, \lstinline|run| could easily be extended to initialize the controller with pre-populated relations. 
+
 
 \subsection*{Optimizations}
    % 1) expand tree before add/remove nodes with a match on that relation ( based on add(p); add(p) == add(p) so can shortcircuit if p is already in the relation)
@@ -497,7 +499,7 @@ Other optimizations may further reduce the number of packet sent to the controll
 
 %???
 
-\section*{Future Work and Conclusion}
+\section*{Conclusion}
 In this paper, we have introduced \textit{Red Oak}, a SDN library for proactively generating a dynamic controller from an arbitrary programmer-defined policy in a general purpose programming language.
 \textit{Red Oak} provides programmers the abstraction that their centralized policy will run on each 
 new packet entering the network, while alleviating for the programmer need to consider
