@@ -261,12 +261,7 @@ Various composition operator may be built as host language function to combine m
 %that's the hope...
 
 \subsection*{A.P.I.}
-In our model, algorithmic policies interact with packets through A.P.I function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|A.P.I.|. 
-\lstinline|field| enumerates the different fields of a packet. It can be extended to represent more fields of a packet's header. Associated with \lstinline|field| are \lstinline|range|s, possible values taken by a certain packet's field, within a given minimum value \lstinline|min_value| and maximum value \lstinline|max_value|. \lstinline|range| consists of list of integer pairs, representing a collection of intervals whose union correspond to the range of values of a packet. For simplicity, we consider integer fields here, but this could be extended, for example, to IP prefix, boolean flags, etc.
-
-\lstinline|forwarding_decision| enumerates the different forwarding decision which can be returned by an algorithmic policy. \lstinline|Deliver| forwards the packet to its destination, \lstinline|Drop| drops the packet, \lstinline|ForwardTo i| forwards the packet to a constant location \lstinline|i| and \lstinline|Multicast fd1 fd2| duplicates the packet and handles each according to \lstinline|fd1| and \lstinline|fd2| respectively.
-
-Algorithmic policy may base their forwarding decision on the result of calling the \lstinline|in_range pkt fld r|, which returns whether value of packet \lstinline|pkt| at field \lstinline|fld| is in the range \lstinline|r|.
+In our model, algorithmic policies interact with packets through A.P.I function calls before returning a forwarding decision. We include in Figure~\ref{fig:range_api} the core of our \lstinline|A.P.I.|.
 
 \begin{figure}[ht]
   \begin{lstlisting}[mathescape]
@@ -292,10 +287,11 @@ val in_range: pkt $\rightarrow$ field $\rightarrow$ range $\rightarrow$ bool
 \end{figure}
 
 
+\lstinline|field| enumerates the different fields of a packet. It can be extended to represent more fields of a packet's header. Associated with \lstinline|field| are \lstinline|range|s, possible values taken by a certain packet's field, within a given minimum value \lstinline|min_value| and maximum value \lstinline|max_value|. \lstinline|range| consists of list of integer pairs, representing a collection of intervals whose union correspond to the range of values of a packet. For simplicity, we consider integer fields here, but this could be extended, for example, to IP prefix, boolean flags, etc.
 
-In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A.P.I.|, used to model stateful controller programs. A \lstinline|relation| represents a table in which each row contains a series of field values. It is referred to by a string. Policy writer may add a row to a relation \lstinline|rel| by calling the function \lstinline|add pkt flds rel|, which will populate the new row with the fields \lstinline|flds|' values of the current packet \lstinline|pkt|. Similarly, they may remove a row containing exactly the values of fields \lstinline|flds|' values of the current packet \lstinline|pkt| by calling \lstinline|remove pkt flds rel|. Finally, one may test if the values of fields \lstinline|flds| of current packet \lstinline|pkt| are in relation \lstinline|rel| by calling \lstinline|in_rel pkt flds rel|.
+\lstinline|forwarding_decision| enumerates the different forwarding decision which can be returned by an algorithmic policy. \lstinline|Deliver| forwards the packet to its destination, \lstinline|Drop| drops the packet, \lstinline|ForwardTo i| forwards the packet to a constant location \lstinline|i| and \lstinline|Multicast fd1 fd2| duplicates the packet and handles each according to \lstinline|fd1| and \lstinline|fd2| respectively.
 
-
+Algorithmic policy may base their forwarding decision on the result of calling the \lstinline|in_range pkt fld r|, which returns whether value of packet \lstinline|pkt| at field \lstinline|fld| is in the range \lstinline|r|.
 
 \begin{figure}[ht]
   \begin{lstlisting}[mathescape]
@@ -311,6 +307,7 @@ val in_rel: pkt $\rightarrow$ fields $\rightarrow$ relation $\rightarrow$ bool
 \end{figure}
 
 
+In Figure~\ref{fig:rel_api}, we include the relation portion of the \lstinline|A.P.I.|, used to model stateful controller programs. A \lstinline|relation| represents a table in which each row contains a series of field values. It is referred to by a string. Policy writer may add a row to a relation \lstinline|rel| by calling the function \lstinline|add pkt flds rel|, which will populate the new row with the fields \lstinline|flds|' values of the current packet \lstinline|pkt|. Similarly, they may remove a row containing exactly the values of fields \lstinline|flds|' values of the current packet \lstinline|pkt| by calling \lstinline|remove pkt flds rel|. Finally, one may test if the values of fields \lstinline|flds| of current packet \lstinline|pkt| are in relation \lstinline|rel| by calling \lstinline|in_rel pkt flds rel|.
 
 
 \begin{figure}[ht]
@@ -325,8 +322,23 @@ val run: policy $\rightarrow$ examples $\rightarrow$ unit
   \label{fig:build_api}
 \end{figure}
 
+
+The rest of the API, included in Figure~\ref{fig:build_api}, consists of functions used to interact with Red Oak. \lstinline|compile| is used to trace a policy from a given function from packet to forwarding \lstinline|decision|. \lstinline|run| simulates the compiled \lstinline|policy| on a series of \lstinline|examples|. In the remainder of this section, we describe these functions in more detail.
+
+\subsection*{Internal Representation of Packets and Policies}
+
+Packet are represented abstractly in the API as type \lstinline|pkt|, and are treated as concrete packet by algorithmic policies. In contrast, internally, \lstinline|pkt| represents a class of packet which could reach a certain point in the program. We call this class of packet a symbolic packet.
+A symbolic packet consists of two parts:
+\begin{itemize}
+\item a map from \lstinline|field| to \lstinline|range|, representing the range of possible value from the class of packet
+  \item a list of pairs of \lstinline|relation| and list of \lstinline|field| representing the relation that the relevant \lstinline|field|'s value of the symbolic packet should be in. 
+  \end{itemize}
+  
+A \lstinline|policy| is represented internally as a decision tree whose leaves are forwarding decision and whose node are either branching according the range of a field value, according to a relation, or adding and removing components from a relation. To simplify rule generation, we also record in the tree the most general symbolic packet who can reach leaves, \lstinline|Add| and \lstinline|Remove| nodes.
+
+
 \subsection*{Tracing the Algorithmic Policy}
-From an algorithmic policy, we generate a decision tree  whose leaves are forwarding decision and whose node are either branching according the range of a field value, according to a relation ,or adding and removing components from a relation.
+From an algorithmic policy, we generate a decision tree using the function \lstinline|compile|.  
 
 \begin{figure*}[ht]
 \begin{lstlisting}[mathescape]
