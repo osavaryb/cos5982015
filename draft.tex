@@ -1,6 +1,6 @@
 
 
-\documentclass[preprint]{sigplanconf}
+\documentclass[nocopyrightspace]{sigplanconf}
 \usepackage[latin1]{inputenc}
 \usepackage{times}
 \usepackage{latexsym}
@@ -133,7 +133,7 @@ However, we address each of the shortcomings in Maple listed above. Our contribu
 
 
 
-\section*{Algorithic Policies Revisited}
+\section*{Algorithmic Policies Revisited}
 % Explains what algorithmic policies are, how maple was handling them and the difference with our model 
 Algorithmic policies were introduced by Maple as a model for SDN controllers. An algorithmic policy is a programmer-defined function from a packet to a forwarding decision (i.e., where the packet(s) should end up). Conceptually this model offers the abstraction that the network forwards packets as if this function were executed on each packet when entering the network. To handle future traffic directly in the data plane, Maple keeps a tree data structure that branches on decisions observed at run time (e.g., the packet had source IP 10.0.0.1). We extend the idea of decision tree to work at a higher level of abstraction involving decisions based on symbolic constraints, rather than concrete, packets. Let us take a look at an example.
 
@@ -232,12 +232,12 @@ Conveniently, ranges on packet fields also give us a way to describe symbolic pa
    % can give constant decision (e.g. drop() or fwd(loc) to a certain location loc), or decision based on values of the packet (e.g. deliver() which forwards to Dst)
 	The programming model for \textit{Red Oak} is that each packet entering the network is mapped to a forwarding decision that describes where the packet should end up leaving the network. For simplicity, we assume that we are targeting a one big switch implementation of the network. The one big switch model has been heavily optimized (e.g., \cite{Obs}), and we view the problem of determining paths through the network as orthogonal to our work here. 
   
-   We provide several types of forwarding decisions to the programmer. The programmer can deliver a packet, according to the packet's desination, drop a packet, and forwarding a packet to a static location. Our API also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller (not shown in Fig~\ref{fig:range_api}). Finally, the programmer can combine several forwarding decisions into one by using a mulitcast forwarding decision.
+   We provide several types of forwarding decisions to the programmer. The programmer can deliver a packet, according to the packet's destination, drop a packet, and forwarding a packet to a static location. Our API also allows for dynamic forwarding based on component of relation, for example to the last seen location of a host according to a MAC-learning controller (not shown in Fig~\ref{fig:range_api}). Finally, the programmer can combine several forwarding decisions into one by using a mulitcast forwarding decision.
    
 
    \subsection*{Combining Algorithmic Policies}
    % cross, ``holes''
-   As algorithmic policies under our model are functions of the host language, we inherit the latter's function space ability, allowing, amongst other things, for compositon of algorithmic policies and higher-order algorithmic policies.
+   As algorithmic policies under our model are functions of the host language, we inherit the latter's function space ability, allowing, among other things, for composition of algorithmic policies and higher-order algorithmic policies.
 
 \begin{figure}[ht]
 \begin{lstlisting}
@@ -358,7 +358,7 @@ From an algorithmic policy, we generate a decision tree using the function \lsti
 \begin{figure}[ht]
 \begin{lstlisting}[mathescape]
 let compile (f: pkt $\rightarrow$ decision) : policy =
-      stack $\gets$ empty.push(new packet)
+      stack $\gets$ empty.push(new sym packet)
       root $\gets$ new unexplored node
       while (stack is not empty)
           loc $\gets$ root
@@ -372,7 +372,7 @@ let compile (f: pkt $\rightarrow$ decision) : policy =
 \end{figure}
 
 To do so, we repeatedly run the algorithmic policy \lstinline|f| on symbol packets generated to explore every reachable path.
-We begin by calling \lstinline|f| on a symbolic packet covering the full range of value for each of its fields.
+We begin by calling \lstinline|f| on a symbolic packet covering the full range of values for each of its fields.
 
 When \lstinline|f| calls \lstinline|in_range| to learn if the packet \lstinline|fld|'s value is in the range \lstinline|r|, we
 \begin{enumerate}
@@ -384,7 +384,7 @@ When \lstinline|f| calls \lstinline|in_range| to learn if the packet \lstinline|
 
 Similarly, when the algorithmic policy calls \lstinline|in_relation| to learn if fields \lstinline|flds|'s value are in a relation \lstinline|rel|, we
 \begin{enumerate}
-  \item Create a new \lstinline|in_rel| branching node in the decision tree wit hsubtrees corresponding to \lstinline|true| and \lstinline|false|
+  \item Create a new \lstinline|in_rel| branching node in the decision tree with subtrees corresponding to \lstinline|true| and \lstinline|false|
   \item Tag the current packet with the symbolic constraint of being in the relation and return true
   \item Push onto a stack consisting of remaining packets to process, a new symbolic that is the same as the current packet, but tagged as not being part of the relation \lstinline|rel|.
 \end{enumerate}
@@ -399,10 +399,10 @@ When \lstinline|f| returns with a forwarding decision, we record it, paired with
 
 \subsection*{Generating the Symbolic and Concrete Rules}
 
-When \lstinline|compile| terminates, a complete decision tree has been traced for the input algoritmic policy. The next step is generate symbolic rules, mapping a symbolic packet to a forwarding decision.
+When \lstinline|compile| terminates, a complete decision tree has been traced for the input algorithmic policy. The next step is generate symbolic rules, mapping a symbolic packet to a forwarding decision.
 To do so, we do a depth-first, left to right traversal of the tree. On reaching an \lstinline|Add| or a \lstinline|Remove| node, we create a new rule sending the relevant packets to the controller, pruning the rest of the sub-tree. On reaching a leaf, we create a new rule forwarding relevant packets according to the forwarding decision held in the leaf node.
 
-We then generate concrete rules from a collection of relations and a list of symbolic rules. Concrete rules differ from symbolic rules in that they do not depend on relations. Each symbolic rule expands into a list of concrete rules. For each tuple in the relation on which the symbolic rules depend, we create a new rule, refining the ranges of the relevant fields of the symbolic packet with the values of the tuple. We repeat this operation on the created list of symbolic rules until all dependant relations are taken care of, at which point the rules are considered concrete. Due to the prioritization of the resulting rules, we do not need to modify symbolic rules marked as not in a certain relation, as all the packets in the relation will have been matched by the positive rule before reaching this one.
+We then generate concrete rules from a collection of relations and a list of symbolic rules. Concrete rules differ from symbolic rules in that they do not depend on relations. Each symbolic rule expands into a list of concrete rules. For each tuple in the relation on which the symbolic rules depend, we create a new rule, refining the ranges of the relevant fields of the symbolic packet with the values of the tuple. We repeat this operation on the created list of symbolic rules until all dependent relations are taken care of, at which point the rules are considered concrete. Due to the prioritization of the resulting rules, we do not need to modify symbolic rules marked as not in a certain relation, as all the packets in the relation will have been matched by the positive rule before reaching this one.
 
 For example, taking the following symbolic rules from our earlier stateful firewall example: 
   \begin{lstlisting}[mathescape]
@@ -412,7 +412,7 @@ Src $\in$ [101, 1000], (Src, Dst) $\notin$ conn $\mapsto$ Drop
 The first rules says: "external hosts that are trusted should be let through", and the second rules says: "traffic from untrusted external hosts should be dropped".
   
   Assume that the trusted connection relation ``conn'' contains the pairs 
-  \lstinline| {(150,10), (200, 9), (8, 150)}|, meaning external Src 150 can talk to internal Dst 10 and so on. We concretize the above symbolic rules by expanding the first rule to:
+  \lstinline| {(150,10), (200, 9), (8, 150)}|, meaning external Src 150 can talk to internal Dst 10 and so on. We make the above symbolic rules concrete by expanding the first rule to:
 \begin{lstlisting}[mathescape]
 Src $\in$ ([101, 1000] $\cap$ 150), Dst = 10 $\mapsto$ Deliver
 Src $\in$ ([101, 1000] $\cap$ 200), Dst = 9 $\mapsto$ Deliver
@@ -423,7 +423,7 @@ To satisfy both symbolic constraints, we take the intersection of the constraint
 Src = 150, Dst = 10 $\mapsto$ Deliver
 Src = 200, Dst = 9 $\mapsto$ Deliver
  \end{lstlisting}
-Note the omission of the third concrete rule, resulting from \lstinline|Src| having an empty range. We can now concretize the second symbolic rule without doing any work, since checking for relation membership is already done by all the higher priority rules. The final concrete forwarding rules are now:
+Note the omission of the third concrete rule, resulting from \lstinline|Src| having an empty range. We can now make the second symbolic rule concrete without doing any work, since checking for relation membership is already done by all the higher priority rules. The final concrete forwarding rules are now:
 \begin{lstlisting}[mathescape]
 Src = 150, Dst = 10 $\mapsto$ Deliver
 Src = 200, Dst = 9 $\mapsto$ Deliver
@@ -446,9 +446,9 @@ let run (pol: policy) (inputs: examples) : unit =
       match evaluate_rules(cr, pkt) with
        | Some fd $\to$ forward(pkt, fd)
        | None $\to$
-           (fd, rel) $\gets$ evaluate_policy(pkt)
-           cr $\gets$ build_concrete_rules(sr, rel)
-           forward(pkt, fd)     
+         (fd, rel) $\gets$ evaluate_policy(pol, pkt)
+         cr $\gets$ build_concrete_rules(sr, rel)
+         forward(pkt, fd)     
 \end{lstlisting}
 
 \caption{Pseudocode for the run function}
@@ -463,7 +463,7 @@ While we currently start the simulation with empty relation, \lstinline|run| cou
    % 1) expand tree before add/remove nodes with a match on that relation ( based on add(p); add(p) == add(p) so can shortcircuit if p is already in the relation)
 The rules generated by the presented technique ensures that the only packets being forwarded to the controller are those reaching an add or a remove node and thus potentially modify the state of the controller. However, these packets do not always modify the state of the controller. For example, in the firewall example (see Fig~\ref{fig:firewallcode}), after seeing a first packet with an \lstinline|Src| of 10 and \lstinline|Dst| of 150, any subsequent packet with the same \lstinline|Src| and \lstinline|Dst| could be delivered without being first forwarded to the controller, as adding the same tuple to a relation is idempotent. By using both local and global transformations on the decision tree, we can get closer to an optimal number of packet forwarded to the controller, where only packets having a real, meaningful effect are seen by the controller.
 
-We implemented in \textit{Red Oak} a local transformation adding an \lstinline|in_rel| node before \lstinline|add| or \lstinline|remove| nodes. In the case of \lstinline|add|, the \lstinline|add| node is omited in the true branch of \lstinline|in_rel|, such that packets whose fields are already in the relation will not be seen by the controller due to this \lstinline|add| node. Similarly, we omit the \lstinline|remove| node in the false branch of \lstinline|in_rel|. In the firewall example (see Fig.~\ref{fig:firewallcode}), this would result the following decision tree:
+We implemented in \textit{Red Oak} a local transformation adding an \lstinline|in_rel| node before \lstinline|add| or \lstinline|remove| nodes. In the case of \lstinline|add|, the \lstinline|add| node is omitted in the true branch of \lstinline|in_rel|, such that packets whose fields are already in the relation will not be seen by the controller due to this \lstinline|add| node. Similarly, we omit the \lstinline|remove| node in the false branch of \lstinline|in_rel|. In the firewall example (see Fig.~\ref{fig:firewallcode}), this would result the following decision tree:
 
 \begin{figure}[ht]
   \includegraphics[scale=.33]{img/optdtree.png}

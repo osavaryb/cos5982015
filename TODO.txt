@@ -1,6 +1,6 @@
 TODO
 
-- write the report
+
 
 - investigate policy combination (cross, seq, &c.)
 
@@ -21,6 +21,8 @@ TODO
 
 
 DONE!
+
+- write the report
 
 - should not expose Ctrl forwarding decision, maybe Leaves of decision tree as Option FD?
 
